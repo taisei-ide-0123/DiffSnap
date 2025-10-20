@@ -1,8 +1,9 @@
 # DiffSnap 技術仕様書 v1.0
 
-**対象**: AIコーディングエージェント  
-**更新日**: 2025-01-XX  
-**プロジェクト期間**: 90日（MVP: 0-30日、Pro: 31-60日、安定化: 61-90日）
+**対象**: AIコーディングエージェント
+**更新日**: 2025-10-21
+**バージョン**: 1.1 (調整版)
+**プロジェクト期間**: 120-150日（MVP: 0-45日、Pro: 46-90日、安定化: 91-120日、予備: 121-150日）
 
 ---
 
@@ -22,10 +23,10 @@
 - 検出再現率: ≥95%（10サイト回帰テスト）
 - 差分適用率: ≥30%/90日（Proユーザー）
 
-### 1.4 事業目標
-- Free→Pro転換率: ≥5%/30日
-- 月実行回数中央値: ≥4回
-- 90日継続率: ≥40%（Pro）
+### 1.4 事業目標（調整版: 現実的目標値）
+- Free→Pro転換率: ≥2-3%/60日（業界平均、差別化により5%目標）
+- 月実行回数中央値: ≥2回（MVP初期）→ ≥4回（安定期）
+- 120日継続率: ≥35%（Pro、初期チャーン考慮）
 
 ---
 
@@ -315,18 +316,27 @@ CollectionOptions {
 
 ### 5.1 画像検出エンジン（Content Script）
 
-#### 5.1.1 検出対象（8種類）
+#### 5.1.1 検出対象（段階的実装: MVP 5種類 → Phase 2で8種類）
+
+**MVP実装（Week 1-2）:**
 
 | # | 検出対象 | セレクタ/方法 | 優先度 | 備考 |
 |---|---------|-------------|--------|------|
 | 1 | `<img>` | `document.querySelectorAll('img')` | 高 | src, currentSrc取得 |
 | 2 | `<picture>` | `document.querySelectorAll('picture')` | 高 | source要素も走査 |
-| 3 | srcset | img.srcset解析 | 高 | 最大解像度選択 |
-| 4 | CSS background-image | `getComputedStyle(el).backgroundImage` | 中 | 全要素走査 |
+| 3 | srcset | img.srcset解析 | 高 | 最大解像度選択（下記詳細） |
+| 4 | CSS background-image | `getComputedStyle(el).backgroundImage` | 中 | 主要要素のみ走査 |
 | 5 | `<canvas>` | `canvas.toDataURL()` | 中 | CORS汚染時スキップ |
+
+**Phase 2追加（Day 46-60）:**
+
+| # | 検出対象 | セレクタ/方法 | 優先度 | 備考 |
+|---|---------|-------------|--------|------|
 | 6 | SVG `<image>`, `<use>` | `querySelectorAll('svg image, svg use')` | 中 | href, xlink:href |
 | 7 | `<video poster>` | `video[poster]` | 低 | poster属性 |
 | 8 | CSS content | `getComputedStyle(el, '::before/::after').content` | 低 | url()抽出 |
+
+**理由**: 5種類で主要サイトの85-90%の画像をカバー可能。残り3種は追加的な検出率向上（+5-10%）。
 
 #### 5.1.2 検出アルゴリズム
 
@@ -353,34 +363,78 @@ CollectionOptions {
    - Background へ ImageCandidate[] 送信
 ```
 
-#### 5.1.3 srcset解析仕様
+#### 5.1.3 srcset解析仕様（詳細化版）
 
 ```
-srcset解析ロジック:
+srcset解析ロジック（優先度ルール明確化）:
 
-入力: "image-320w.jpg 320w, image-640w.jpg 640w, image-1280w.jpg 1280w"
+入力例1: "image-320w.jpg 320w, image-640w.jpg 640w, image-1280w.jpg 1280w"
+入力例2: "image.jpg 1x, image@2x.jpg 2x, image@3x.jpg 3x"
+入力例3: "image-640w.jpg 640w, image@2x.jpg 2x"（混在ケース）
 
-処理:
-1. カンマ区切りで分割
+処理アルゴリズム:
+1. カンマ区切りで分割 → 各候補エントリ
 2. 各エントリを空白で分割 → [URL, descriptor]
-3. descriptorが"Xw"の場合、X を幅として抽出
-4. 幅の降順ソート
-5. 最大解像度のURLを返す
+3. descriptor分類:
+   - "Xw" 形式 → 幅ディスクリプタ（ピクセル幅）
+   - "Xx" 形式 → 密度ディスクリプタ（デバイスピクセル比）
+   - なし → 1x とみなす
 
-出力: "image-1280w.jpg"
+4. 優先度ルール:
+   a. 幅ディスクリプタ優先（より正確な解像度指定）
+   b. 同一形式内で最大値選択
+   c. 混在時: 幅ディスクリプタ最大 > 密度ディスクリプタ最大
+
+5. 具体的選択ロジック:
+   - 幅ディスクリプタあり → max(widths) のURL
+   - 幅なし、密度のみ → max(densities) のURL
+   - 混在 → 幅ディスクリプタの max(widths) のURL
+
+6. 特殊ケース:
+   - viewport幅の考慮: MVP では考慮せず、常に最大選択
+   - メディアクエリ: <picture><source media="..."> は別途処理
+
+出力例1: "image-1280w.jpg" (1280w が最大)
+出力例2: "image@3x.jpg" (3x が最大)
+出力例3: "image-640w.jpg" (幅ディスクリプタ優先)
 ```
 
-#### 5.1.4 CSS background-image抽出
+#### 5.1.4 CSS background-image抽出（最適化版）
 
 ```
-CSS背景抽出ロジック:
+CSS背景抽出ロジック（パフォーマンス最適化）:
 
-1. 全要素に対して getComputedStyle(el).backgroundImage 取得
-2. 値が 'none' ならスキップ
-3. 正規表現で url() を抽出:
+問題: 全要素走査は大規模DOMで遅延（数千要素で1秒超）
+
+最適化戦略:
+1. 主要セレクタに限定（MVP）:
+   - セクション要素: section, article, div[class*="hero"], div[class*="banner"]
+   - カード要素: div[class*="card"], div[class*="item"]
+   - 背景コンテナ: div[class*="background"], div[class*="cover"]
+   - 最大走査: 500要素まで
+
+2. 各要素に対して:
+   style = getComputedStyle(el).backgroundImage
+
+3. 値が 'none' ならスキップ
+
+4. 正規表現で url() を抽出:
    /url\(['"]?([^'"()]+)['"]?\)/g
-4. 複数背景対応（カンマ区切り）
-5. 各URLを正規化して候補追加
+
+5. 複数背景対応（カンマ区切り）:
+   background-image: url(bg1.jpg), url(bg2.jpg)
+   → 両方抽出
+
+6. 各URLを正規化して候補追加
+
+7. Phase 2拡張:
+   - 全要素走査オプション（設定で有効化）
+   - IntersectionObserver で可視要素のみ
+   - Web Worker での並列処理
+
+注意事項:
+- ::before/::after の content: url() は検出困難（getComputedStyle制限）
+- Phase 2で優先度を上げて対応
 ```
 
 ### 5.2 遅延読込対応（自動スクロール）
@@ -407,18 +461,67 @@ CSS背景抽出ロジック:
 7. window.scrollTo(0, 0) でトップ復帰
 ```
 
-#### 5.2.2 無限スクロール検出
+#### 5.2.2 無限スクロール検出（状態マシン明確化）
 
 ```
-無限スクロール判定:
+無限スクロール判定（優先度ルール）:
 
-条件:
-- 連続3回のスクロールでheight変化なし → 真の最下部
-- 10回以上のスクロールでまだ変化 → 無限スクロールと判定
+状態マシン定義:
 
-ユーザー通知:
-- 上限到達時: 「20画面スクロール完了。続行しますか?」
-- 手動継続オプション提供
+State: SCROLLING
+初期化:
+  scrollCount = 0
+  noChangeCount = 0
+  previousHeight = document.documentElement.scrollHeight
+
+各スクロールイテレーション:
+1. window.scrollTo(0, scrollHeight)
+2. await delay(500ms)
+3. currentHeight = document.documentElement.scrollHeight
+
+4. 判定ロジック（優先度順）:
+
+   a. タイムアウト判定（最優先）:
+      if (elapsed > timeout): → State: TIMEOUT_REACHED
+        通知: "時間制限に達しました"
+        → スクロール終了
+
+   b. 最下部到達判定:
+      if (currentHeight === previousHeight):
+        noChangeCount++
+        if (noChangeCount >= 3): → State: BOTTOM_REACHED
+          → スクロール終了（成功）
+      else:
+        noChangeCount = 0  // リセット
+
+   c. 最大深度判定:
+      scrollCount++
+      if (scrollCount >= maxDepth): → State: MAX_DEPTH_REACHED
+        if (currentHeight !== previousHeight):
+          // まだ変化している = 無限スクロール
+          通知: "20画面スクロール完了。続行しますか?"
+          → ユーザー選択待ち
+        else:
+          → スクロール終了（成功）
+
+   d. 継続:
+      previousHeight = currentHeight
+      → 次のイテレーションへ
+
+5. 終了処理:
+   - window.scrollTo(0, 0) でトップ復帰
+   - 画像再検出実行
+   - 検出完了通知
+
+ユーザー選択肢（MAX_DEPTH_REACHED時）:
+- "Continue +20" → maxDepth += 20, State: SCROLLING に戻る
+- "Stop and Download" → スクロール終了、現在の検出結果で処理
+- "Cancel" → 処理中断
+
+エッジケース:
+- スクロール中に新規コンテンツ読込が遅延（500ms超）→ timeout調整可能
+- JavaScript無効ページ → スクロール1回で終了
+- 固定高さページ → noChangeCount=3 で即座終了
 ```
 
 ### 5.3 URL正規化とレコードID生成
@@ -507,9 +610,71 @@ hashBlob(blob: Blob): Promise<string>
 - 差分台帳への保存時
 ```
 
-### 5.5 並列制御（Parallel Controller）
+### 5.5 Service Worker Keep-Alive戦略（MV3重要対策）
 
-#### 5.5.1 制御仕様
+#### 5.5.0 MV3 Service Worker制約への対応
+
+```
+問題:
+MV3 Service Workerは30秒間無操作で自動休止
+→ 長時間処理（100枚fetch 10-15秒）で休止リスク
+→ IndexedDB接続切断、進捗状態喪失
+
+対策: Keep-Alive + 状態永続化
+
+1. Keep-Alive Ping戦略:
+
+   実装:
+   - Background起動時に chrome.runtime.connect() でポート開設
+   - 20秒ごとに ping メッセージ送信（30秒より短い間隔）
+   - Popup/Content Scriptが接続を維持
+
+   コード構造:
+   let keepAlivePort: chrome.runtime.Port | null = null;
+
+   function startKeepAlive() {
+     keepAlivePort = chrome.runtime.connect({ name: 'keep-alive' });
+     keepAlivePort.onDisconnect.addListener(() => {
+       keepAlivePort = null;
+       // 再接続は次の処理開始時
+     });
+   }
+
+   setInterval(() => {
+     if (keepAlivePort) {
+       keepAlivePort.postMessage({ type: 'ping' });
+     }
+   }, 20000);
+
+2. 進捗状態の永続化:
+
+   chrome.storage.session に保存:
+   - runState_${tabId}: 処理状態
+   - progress_${tabId}: 完了数/総数
+   - failedUrls_${tabId}: 失敗リスト
+
+   休止からの復帰時:
+   - session storage から状態復元
+   - 未完了処理を再開
+   - UIへ状態通知
+
+3. 処理分割戦略（100枚超の場合）:
+
+   - 25枚ごとにチャンクへ分割
+   - 各チャンク完了後に状態保存
+   - 休止発生時も最大25枚のロスのみ
+   - 再開時は次チャンクから継続
+
+4. 代替案（Phase 2検討）:
+
+   - Offscreen Document API使用（永続DOM環境）
+   - Web Worker への処理移譲（独立スレッド）
+   - 現状: Keep-Alive優先（シンプル）
+```
+
+### 5.6 並列制御（Parallel Controller）
+
+#### 5.6.1 制御仕様（ドメイン判定詳細化）
 
 ```
 並列制御パラメータ:
@@ -521,13 +686,54 @@ hashBlob(blob: Blob): Promise<string>
 - グローバル: ブラウザのメモリ制約
 - ドメイン別: レート制限回避、サーバー負荷分散
 
+ドメイン抽出ロジック:
+1. new URL(imageUrl).hostname 取得
+2. サブドメイン正規化:
+   - cdn.example.com → example.com (CDNと判定)
+   - www.example.com → example.com
+   - api.example.com → example.com
+
+   正規化ルール:
+   a. Public Suffix List チェック（co.jp, com 等）
+   b. eTLD+1 抽出（example.com）
+   c. 例外: s3.amazonaws.com, cloudfront.net 等は完全一致
+
+3. ドメインカウンタ管理:
+   domainCounts = Map<string, number>
+   - fetch開始時: counts.get(domain)++
+   - fetch完了時: counts.get(domain)--
+
 実装方式:
 - Promiseベースのキュー管理
 - ドメイン別カウンタ（Map使用）
-- スロット空き待機（ポーリング 50ms）
+- スロット空き待機（async/await, 50ms polling）
+
+並列制御アルゴリズム:
+async function fetchWithConcurrencyControl(candidate):
+  domain = extractDomain(candidate.url)
+
+  // グローバル制限チェック
+  while (globalActiveCount >= 8):
+    await sleep(50)
+
+  // ドメイン別制限チェック
+  while (domainCounts.get(domain) >= 2):
+    await sleep(50)
+
+  // スロット確保
+  globalActiveCount++
+  domainCounts.set(domain, (domainCounts.get(domain) || 0) + 1)
+
+  try:
+    result = await fetchImage(candidate)
+    return result
+  finally:
+    // スロット解放
+    globalActiveCount--
+    domainCounts.set(domain, domainCounts.get(domain) - 1)
 ```
 
-#### 5.5.2 fetch仕様
+#### 5.6.2 fetch仕様
 
 ```
 画像fetch仕様:
@@ -560,9 +766,9 @@ hashBlob(blob: Blob): Promise<string>
    - 失敗: {candidate, error}
 ```
 
-### 5.6 差分エンジン
+### 5.7 差分エンジン（Pro機能）
 
-#### 5.6.1 差分計算アルゴリズム
+#### 5.7.1 差分計算アルゴリズム
 
 ```
 computeDiff(url: string, currentImages: ImageSnapshot[]): Promise<DiffResult>
@@ -592,7 +798,7 @@ computeDiff(url: string, currentImages: ImageSnapshot[]): Promise<DiffResult>
    return { new, existing, isFirstVisit: false }
 ```
 
-#### 5.6.2 台帳クリーンアップ
+#### 5.7.2 台帳クリーンアップ
 
 ```
 cleanupOldRecords(): Promise<number>
@@ -611,9 +817,9 @@ cleanupOldRecords(): Promise<number>
 - 一度に1000件以上削除する場合は分割実行
 ```
 
-### 5.7 ZIP生成
+### 5.8 ZIP生成
 
-#### 5.7.1 ZIP仕様
+#### 5.8.1 ZIP仕様
 
 ```
 ZIP生成パラメータ:
@@ -636,7 +842,7 @@ ZIP生成パラメータ:
 - 提案: 個別ダウンロードへフォールバック
 ```
 
-#### 5.7.2 ダウンロード実行
+#### 5.8.2 ダウンロード実行
 
 ```
 download(blob: Blob, filename: string): Promise<void>
@@ -651,9 +857,9 @@ download(blob: Blob, filename: string): Promise<void>
 - 再試行オプション提供
 ```
 
-### 5.8 ファイル名生成
+### 5.9 ファイル名生成
 
-#### 5.8.1 テンプレート変数
+#### 5.9.1 テンプレート変数
 
 | 変数 | 説明 | フォーマット | 例 |
 |------|------|------------|-----|
@@ -666,7 +872,7 @@ download(blob: Blob, filename: string): Promise<void>
 | {alt} | altテキスト | サニタイズ済み50文字 | Product-Image |
 | {index} | 連番 | 3桁ゼロ埋め | 001, 002... |
 
-#### 5.8.2 プリセットテンプレート
+#### 5.9.2 プリセットテンプレート
 
 ```
 プリセット5種:
@@ -692,7 +898,7 @@ download(blob: Blob, filename: string): Promise<void>
    例: Product-Image-800x600-001.jpg
 ```
 
-#### 5.8.3 サニタイズルール
+#### 5.9.3 サニタイズルール
 
 ```
 ファイル名サニタイズ:
@@ -709,7 +915,7 @@ download(blob: Blob, filename: string): Promise<void>
 3. 判定不可の場合: .jpg をデフォルト
 ```
 
-#### 5.8.4 衝突回避
+#### 5.9.4 衝突回避
 
 ```
 deconflict(name: string, existing: Set<string>): string
@@ -728,30 +934,108 @@ existing = ['image.jpg', 'image-1.jpg']
 deconflict('image.jpg', existing) → 'image-2.jpg'
 ```
 
-### 5.9 ライセンス検証（Pro機能）
+### 5.10 コンテキスト抽出仕様（新規追加）
 
-#### 5.9.1 検証フロー
+#### 5.10.1 周辺コンテキスト抽出ロジック
+
+```
+目的: 画像の周辺テキストを50文字以内で抽出し、検索・識別に活用
+
+抽出アルゴリズム:
+
+1. 優先度付き情報源:
+   a. aria-label 属性（最優先、アクセシビリティ情報）
+   b. title 属性
+   c. alt 属性（既に別フィールドだが、なければこちら）
+   d. figcaption 要素（<figure>の子要素として）
+   e. 祖先要素のテキストノード（3階層まで）
+
+2. 祖先要素走査:
+   element = img要素
+   for (let i = 0; i < 3; i++):
+     element = element.parentElement
+     if (!element): break
+
+     // テキストノード収集
+     textNodes = Array.from(element.childNodes)
+       .filter(node => node.nodeType === Node.TEXT_NODE)
+       .map(node => node.textContent.trim())
+       .filter(text => text.length > 0)
+
+     if (textNodes.length > 0):
+       context = textNodes.join(' ')
+       break
+
+3. テキスト正規化:
+   - HTML除去（既にテキストノードなので不要）
+   - 連続空白を単一スペースに統一
+   - 改行を削除
+   - 制御文字除去
+
+4. 長さ制限:
+   - マルチバイト文字考慮: String.prototype.length 使用
+   - 50文字超過の場合: substring(0, 50) + "..."
+   - 日本語等は文字数でカウント（バイト数ではない）
+
+5. 空の場合のフォールバック:
+   - 画像のURL最終セグメント（ファイル名部分）
+   - 例: "https://example.com/images/product-photo.jpg"
+   → context: "product-photo.jpg"
+
+出力例:
+- aria-label="Product showcase" → "Product showcase"
+- <figure><img><figcaption>Beautiful sunset</figcaption></figure>
+  → "Beautiful sunset"
+- <div class="card"><img><p>Limited offer</p></div>
+  → "Limited offer"
+```
+
+### 5.11 ライセンス検証（Pro機能）
+
+#### 5.11.1 検証フロー（キャッシュ戦略追加）
 
 ```
 checkTier(): Promise<'free' | 'pro'>
 
-処理:
-1. chrome.storage.sync から licenseKey 取得
-2. キーが存在しない → 'free' 返却
-3. キーが存在する場合:
+処理（キャッシュ戦略追加）:
+
+1. キャッシュ確認:
+   - chrome.storage.local から lastVerification 取得
+   - { tier, expiresAt, verifiedAt } 構造
+   - if (now - verifiedAt < 24時間 AND now < expiresAt):
+       → キャッシュされた tier を返却（API呼び出しスキップ）
+
+2. chrome.storage.sync から licenseKey 取得
+   - キーが存在しない → 'free' 返却（キャッシュ更新）
+
+3. キーが存在する場合、API検証実行:
    - APIエンドポイントにPOST
    - { key: licenseKey } を送信
-   - レスポンス: { tier, expiresAt }
-4. グレース期間チェック:
-   - graceEndTime = expiresAt + 72時間
-   - now > graceEndTime → 'free' 返却
-   - それ以外 → tier 返却
-5. エラー時: 'free' 返却（フェイルセーフ）
+   - タイムアウト: 5秒
+
+4. API成功時:
+   - レスポンス: { tier, expiresAt, email }
+   - キャッシュ更新: chrome.storage.local.set({ lastVerification: { tier, expiresAt, verifiedAt: now } })
+   - グレース期間チェック:
+     - graceEndTime = expiresAt + 72時間
+     - now > graceEndTime → 'free' 返却
+     - それ以外 → tier 返却
+
+5. APIエラー時（ネットワーク障害等）:
+   - キャッシュが存在 AND now < expiresAt:
+     → キャッシュされた tier を返却（一時障害耐性）
+   - キャッシュなし or 期限切れ:
+     → 'free' 返却（フェイルセーフ）
+
+6. 24時間ごとに自動再検証（バックグラウンド）:
+   - chrome.alarms.create('license-check', { periodInMinutes: 1440 })
+   - 期限切れ検出時にユーザー通知
 
 APIエンドポイント:
 POST https://api.diffsnap.io/v1/verify
 Content-Type: application/json
 Body: { "key": "license-key-string" }
+Timeout: 5000ms
 
 レスポンス:
 {
@@ -759,9 +1043,14 @@ Body: { "key": "license-key-string" }
   "expiresAt": 1704067200000,  // Unix timestamp
   "email": "user@example.com"
 }
+
+エラーレスポンス:
+{
+  "error": "INVALID_KEY" | "EXPIRED" | "REVOKED"
+}
 ```
 
-#### 5.9.2 Free制限チェック
+#### 5.11.2 Free制限チェック
 
 ```
 checkFreeLimit(imageCount: number): Promise<boolean>
@@ -781,7 +1070,7 @@ checkFreeLimit(imageCount: number): Promise<boolean>
    - true 返却
 ```
 
-#### 5.9.3 アップグレード導線
+#### 5.11.3 アップグレード導線
 
 ```
 アップグレード表示タイミング:
@@ -1093,20 +1382,37 @@ Pro Tier:
 
 ### 7.2 E2Eテスト（Playwright）
 
-#### 7.2.1 テストサイト（10種類）
+#### 7.2.1 テストサイト（段階的拡張: MVP 5サイト → 安定期 10サイト）
+
+**MVP Phase (Day 0-45): コア5サイト**
+
+| # | サイト種別 | URL | 検証内容 | 期待枚数 | 優先度 |
+|---|----------|-----|---------|---------|--------|
+| 1 | EC | amazon.com/dp/XXX | 商品画像、srcset | ≥30 | 必須 |
+| 2 | ギャラリー | unsplash.com/s/photos/nature | 無限スクロール | ≥50 | 必須 |
+| 3 | ニュース | cnn.com/article | CSS background | ≥20 | 必須 |
+| 4 | Wiki | wikipedia.org/article | SVG、多言語alt | ≥10 | 必須 |
+| 5 | CSP厳格 | github.com/repo | フォールバック | ≥10 | 必須 |
+
+**Pro Phase追加 (Day 46-90): +3サイト**
 
 | # | サイト種別 | URL | 検証内容 | 期待枚数 |
 |---|----------|-----|---------|---------|
-| 1 | EC | amazon.com/dp/XXX | 商品画像、srcset | ≥30 |
-| 2 | ギャラリー | unsplash.com/s/photos/nature | 無限スクロール | ≥50 |
-| 3 | SPA | twitter.com/user | 動的DOM更新 | ≥20 |
-| 4 | ドキュメント | notion.so/page | 埋込画像、Canvas | ≥15 |
-| 5 | ニュース | cnn.com/article | CSS background | ≥20 |
-| 6 | Wiki | wikipedia.org/article | SVG、多言語alt | ≥10 |
+| 6 | SPA | twitter.com/user | 動的DOM更新 | ≥20 |
 | 7 | デザイン | dribbble.com/shots | 高DPI画像 | ≥25 |
 | 8 | 動画 | youtube.com/watch | poster抽出 | ≥5 |
-| 9 | 管理画面 | dashboard.stripe.com | 認証Cookie | ≥8 |
-| 10 | CSP厳格 | github.com/repo | フォールバック | ≥10 |
+
+**安定期追加 (Day 91-120): +2サイト**
+
+| # | サイト種別 | URL | 検証内容 | 期待枚数 |
+|---|----------|-----|---------|---------|
+| 9 | ドキュメント | notion.so/page | 埋込画像、Canvas | ≥15 |
+| 10 | 管理画面 | dashboard.stripe.com | 認証Cookie | ≥8 |
+
+**理由**:
+- MVP: 主要ユースケース5種で85-90%カバー
+- 早期リリース優先、完璧主義回避
+- 段階的拡張で品質維持とスピード両立
 
 #### 7.2.2 テストシナリオ
 
@@ -1291,30 +1597,59 @@ CSP厳格サイト（GitHub等）:
 
 ### 8.2 パフォーマンス
 
-#### 8.2.1 最適化方針
+#### 8.2.1 最適化方針（メモリ管理詳細化）
 
 ```
 最適化項目:
 
-1. メモリ管理
-   - Blob即座破棄（URL.revokeObjectURL）
-   - ストリーム処理（可能な限り）
-   - 大量画像時の分割処理
+1. メモリ管理（詳細戦略）:
 
-2. ネットワーク
-   - 並列制御（8並列）
+   a. Blob即座破棄:
+      - fetch完了後、ハッシュ計算完了したら即座破棄
+      - URL.revokeObjectURL() を 60秒後に呼び出し
+      - WeakMap でBlob参照追跡
+
+   b. メモリプール管理:
+      - 最大メモリ使用量: 256MB（Chrome拡張推奨値）
+      - 現在メモリ推定: activeBlobs.size × 平均Blobサイズ
+      - 推定値 > 200MB で警告、250MB でエラー
+
+   c. 処理分割（大量画像対策）:
+      - 50枚ごとにチャンク分割
+      - 各チャンク完了後に強制GC待機（100ms）
+      - performance.memory.usedJSHeapSize 監視（Chrome専用）
+
+   d. メモリ圧迫時の動的調整:
+      - メモリ使用 > 200MB → 並列数 8 → 4 に削減
+      - メモリ使用 > 230MB → 並列数 4 → 2 に削減
+      - メモリ使用 > 250MB → 処理一時停止、ユーザー通知
+
+   e. 大容量画像対策:
+      - 個別Blob > 10MB で警告ログ
+      - 個別Blob > 20MB でスキップ（ZIP容量考慮）
+      - 累積ZIP > 800MB で「残り画像は個別DL推奨」通知
+
+2. ネットワーク最適化:
+   - 並列制御（8並列、メモリ圧迫時は動的削減）
    - ドメイン別レート制限（2/domain）
    - タイムアウト設定（30秒）
+   - リトライ戦略: 3回まで、指数バックオフ（2s, 4s, 8s）
 
-3. UI応答性
-   - 長時間処理のWebWorker化（将来）
-   - プログレッシブレンダリング
-   - 仮想スクロール（100枚以上）
+3. UI応答性:
+   - 長時間処理のWebWorker化（Phase 2検討）
+   - プログレッシブレンダリング（10枚ごとにUI更新）
+   - 仮想スクロール（100枚以上でreact-window使用）
 
-4. IndexedDB
-   - インデックス活用
-   - トランザクションバッチ化
-   - 定期クリーンアップ
+4. IndexedDB最適化:
+   - インデックス活用（domain, lastScanAt）
+   - トランザクションバッチ化（100件ごと）
+   - 定期クリーンアップ（起動時 + 週1回）
+   - 圧縮検討（Phase 2: LZ4圧縮でストレージ50%削減）
+
+5. パフォーマンス計測:
+   - performance.mark/measure 使用
+   - 各フェーズの処理時間計測
+   - メモリスナップショット（開発モード）
 ```
 
 #### 8.2.2 リソース制限
@@ -1387,7 +1722,132 @@ ZIP:
 - 台帳更新は常に実行
 ```
 
-### 8.4 国際化（将来対応）
+### 8.4 パフォーマンスプロファイリング（新規追加）
+
+```
+開発時の計測ポイント:
+
+1. Chrome DevTools Performance:
+   - 記録開始: 収集開始ボタンクリック
+   - 記録終了: ZIP完了
+   - 確認項目:
+     - Long Task（50ms超のブロッキング処理）
+     - FPS低下（60fps未満の箇所）
+     - メモリリーク（Heap Snapshot比較）
+
+2. Performance API使用:
+
+   コード挿入箇所:
+   performance.mark('detection-start')
+   // 画像検出処理
+   performance.mark('detection-end')
+   performance.measure('detection', 'detection-start', 'detection-end')
+
+   計測フェーズ:
+   - detection: Content Scriptでの画像検出
+   - fetch-all: 全画像の並列fetch
+   - hash-computation: SHA-256ハッシュ計算
+   - diff-check: 差分台帳との比較（Pro）
+   - zip-creation: ZIP生成
+   - total: 開始→完了まで
+
+3. メモリプロファイリング:
+
+   開発モードで有効化:
+   if (process.env.NODE_ENV === 'development'):
+     setInterval(() => {
+       const memory = performance.memory
+       console.log({
+         used: (memory.usedJSHeapSize / 1024 / 1024).toFixed(2) + 'MB',
+         total: (memory.totalJSHeapSize / 1024 / 1024).toFixed(2) + 'MB',
+         limit: (memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2) + 'MB'
+       })
+     }, 1000)
+
+4. ビルドサイズ目標:
+
+   最終dist/サイズ:
+   - manifest.json: <5KB
+   - background.js: <150KB（gzip後）
+   - content.js: <100KB（gzip後）
+   - popup.html + React: <300KB（gzip後）
+   - 合計: <500KB（未圧縮時 <1.5MB）
+
+   最適化施策:
+   - Tree shaking有効化
+   - React Production Build
+   - Code splitting（Popup/Settings別バンドル）
+   - Lucide Reactアイコンの選択的インポート
+
+5. E2Eパフォーマンステスト:
+
+   Playwright計測:
+   const startTime = Date.now()
+   await page.click('[data-testid="download-all"]')
+   await page.waitForSelector('[data-testid="download-complete"]')
+   const duration = Date.now() - startTime
+   expect(duration).toBeLessThan(10000) // P50 目標
+
+6. 継続的監視:
+
+   CI/CDでの自動計測:
+   - pnpm build 時にバンドルサイズレポート生成
+   - 前回ビルドとの差分表示
+   - 10%以上増加でwarning
+```
+
+### 8.5 ブラウザAPI依存リスク（新規追加）
+
+```
+Chrome独自API使用箇所と将来の移植性:
+
+1. chrome.storage:
+   使用箇所: 設定保存、差分台帳（IndexedDB）、セッション状態
+   Firefox互換: browser.storage（ほぼ同一API）
+   Safari互換: 未対応（代替: localStorage + IndexedDB）
+
+   対策: 薄いラッパー層
+   interface StorageAdapter {
+     get(key: string): Promise<any>
+     set(key: string, value: any): Promise<void>
+   }
+
+2. chrome.downloads:
+   使用箇所: ZIP保存
+   Firefox互換: browser.downloads
+   Safari互換: 未対応（代替: <a download>）
+
+   対策: ダウンロード抽象化
+   async function downloadFile(blob, filename) {
+     if (chrome?.downloads) {
+       // Chrome/Firefox
+     } else {
+       // Safari fallback: <a> trigger
+     }
+   }
+
+3. chrome.scripting:
+   使用箇所: Content Script注入
+   Firefox互換: browser.scripting（MV3対応後）
+   Safari互換: safari.extension（API差異大）
+
+   対策: 注入ロジックの抽象化（Phase 3）
+
+4. chrome.runtime:
+   使用箇所: メッセージング、Keep-Alive
+   Firefox互換: browser.runtime
+   Safari互換: safari.runtime（部分対応）
+
+   対策: 現状Chrome優先、移植時に抽象化
+
+推奨アプローチ:
+- MVP: Chrome専用実装（高速開発）
+- Phase 2: Firefox対応準備（抽象化層追加）
+- Phase 3: Firefox正式対応（MV3安定後）
+- Safari: 需要次第（API差異大きく優先度低）
+```
+
+### 8.6 国際化（将来対応）
 
 ```
 国際化準備:
@@ -2074,72 +2534,95 @@ jobs:
 
 ## 15. 成功基準
 
-### 15.1 MVP成功指標（Day 30）
+### 15.1 MVP成功指標（Day 45、調整版）
 
 ```
-定量指標:
+定量指標（現実的目標値）:
 
 技術:
-- [ ] 10サイト回帰テスト 95%以上検出率
-- [ ] 100枚処理 P50 ≤10秒
+- [ ] 5サイト回帰テスト 85-90%検出率（MVP段階）
+- [ ] 100枚処理 P50 ≤10秒、P95 ≤15秒
 - [ ] プレビュー表示 P50 ≤1秒
-- [ ] クラッシュ率 <1%
+- [ ] クラッシュ率 <2%（初期バージョン許容）
 
 公開:
 - [ ] Chrome Web Store審査通過
 - [ ] 初回公開完了
-- [ ] ストア評価 ≥4.0 (10レビュー以上)
+- [ ] ストア評価 ≥3.5 (5レビュー以上、初期は厳しめ評価想定)
 
-ユーザー:
-- [ ] DAU 50+
-- [ ] 週実行回数中央値 ≥3
-- [ ] NPS収集開始（サンプル20+）
+ユーザー（控えめ初月目標）:
+- [ ] DAU 10-30（初月は認知不足）
+- [ ] 週実行回数中央値 ≥1-2（習慣化前）
+- [ ] NPS収集開始（サンプル10+、フィードバック重視）
+- [ ] 初回実行→2回目実行 ≥40%（リテンション）
+
+追加指標（定性）:
+- [ ] 致命的バグゼロ（データ損失、クラッシュループ等）
+- [ ] サポート問い合わせ対応時間 <24時間
+- [ ] ユーザーフィードバック収集フロー確立
 ```
 
-### 15.2 Pro成功指標（Day 60）
+### 15.2 Pro成功指標（Day 90、調整版）
 
 ```
-定量指標:
+定量指標（現実的目標値）:
 
 技術:
+- [ ] 8サイト回帰テスト 90-95%検出率（+3サイト追加）
 - [ ] 差分検出精度 100%（新規/既存分離）
 - [ ] 差分計算時間 <500ms（1000件台帳）
-- [ ] Pro機能クラッシュ率 <0.5%
+- [ ] Pro機能クラッシュ率 <1%
 
-事業:
-- [ ] Pro契約 10件/週
-- [ ] Free→Pro転換率 ≥5%
+事業（段階的成長想定）:
+- [ ] Pro契約 累計30-50件（初回60日）
+- [ ] Pro新規契約 2-5件/週（安定期）
+- [ ] Free→Pro転換率 ≥2-3%（業界平均、5%は stretch goal）
 - [ ] 差分機能使用率 ≥30%（Pro）
-- [ ] チャーン率 <15%（Pro、月次）
+- [ ] チャーン率 <20%（Pro、月次、初期は高め想定）
 
-ユーザー:
-- [ ] DAU 200+
-- [ ] Pro DAU 20+
-- [ ] NPS ≥40
+ユーザー（段階的成長）:
+- [ ] DAU 100-200（MVP後の成長）
+- [ ] Pro DAU 5-15（転換率2-3%想定）
+- [ ] NPS ≥30（初期は課題多く控えめ）
+- [ ] 週実行回数中央値 ≥2-3（習慣化進行中）
+
+追加指標:
+- [ ] Pro差分機能の平均検出新規画像数 ≥5枚/実行
+- [ ] Pro継続期間中央値 ≥60日
+- [ ] アップグレード導線クリック率 ≥10%
 ```
 
-### 15.3 安定化成功指標（Day 90）
+### 15.3 安定化成功指標（Day 120、調整版）
 
 ```
-定量指標:
+定量指標（現実的目標値）:
 
 技術:
-- [ ] 全E2Eテスト自動化
-- [ ] カバレッジ ≥80%
+- [ ] 10サイト回帰テスト自動化（全サイト対応）
+- [ ] 検出率 ≥95%（最終目標達成）
+- [ ] カバレッジ ≥80%（コア機能 ≥90%）
 - [ ] クラッシュ率 <0.5%
 - [ ] P95処理時間 ≤15秒維持
 
-事業:
-- [ ] MRR $2,000+
-- [ ] Pro継続率 ≥85%（30日）
-- [ ] WAU 1,000+
-- [ ] ストア評価 ≥4.3 (50+ レビュー)
+事業（段階的成長、120日時点）:
+- [ ] MRR $500-1,000（初期目標、$2,000は180日目標）
+- [ ] Pro契約 累計60-100件
+- [ ] Pro継続率 ≥70%（30日、初期は離脱高め）
+- [ ] Free→Pro転換率 ≥3-4%（改善継続）
+- [ ] WAU 400-800（DAU 100-200 × 4-5）
+- [ ] ストア評価 ≥4.0 (20-30レビュー)
 
 運用:
-- [ ] 監視ダッシュボード稼働
+- [ ] 監視ダッシュボード稼働（テレメトリ分析）
 - [ ] 週次メトリクスレビュー実施
-- [ ] ドキュメント完備
-- [ ] リリースプロセス確立
+- [ ] ドキュメント完備（技術+ユーザー）
+- [ ] リリースプロセス確立（CI/CD完全自動化）
+- [ ] インシデント対応プロセス確立
+
+品質:
+- [ ] 平均サポート応答時間 <12時間
+- [ ] 致命的バグ修正 <48時間
+- [ ] 機能リクエスト優先度付けプロセス確立
 ```
 
 ---
@@ -2294,41 +2777,60 @@ Web APIs:
 - WCAG 2.1 Accessibility Guidelines
 ```
 
-### 17.3 開発チェックリスト
+### 17.3 開発チェックリスト（調整版: 45日MVP計画）
 
 ```
-Phase 1 (MVP) チェックリスト:
+Phase 1 (MVP) チェックリスト（現実的スケジュール）:
 
-Week 1:
-- [ ] プロジェクト雛形作成
-- [ ] CI/CD設定
-- [ ] detector実装（8種類）
-- [ ] url-utils実装
-- [ ] 単体テスト（detector, url-utils）
+Week 1-2 (Day 1-14): 基盤・検出エンジン
+- [ ] プロジェクト雛形作成（Vite + React + Tailwind）
+- [ ] CI/CD設定（GitHub Actions）
+- [ ] url-utils実装（正規化、recordID）
+- [ ] hasher実装（SHA-256）
+- [ ] detector実装（5種類のみ: img, picture, srcset, CSS bg, canvas）
+- [ ] 単体テスト（url-utils, hasher, detector基本）
+- [ ] Content Script基本実装
 
-Week 2:
-- [ ] lazy-loader実装
-- [ ] collector実装（並列制御）
-- [ ] popup UI雛形
-- [ ] メッセージング実装
+Week 3 (Day 15-21): 収集・並列制御
+- [ ] lazy-loader実装（自動スクロール）
+- [ ] 並列制御実装（グローバル8、ドメイン別2）
+- [ ] Service Worker Keep-Alive実装
+- [ ] collector実装（fetch + ハッシュ）
+- [ ] メッセージング実装（Content ↔ Background）
 
-Week 3:
-- [ ] diff-engine実装
-- [ ] zipper実装
-- [ ] 進捗UI実装
-- [ ] Free制限実装
+Week 4 (Day 22-28): UI・基本フロー
+- [ ] Popup UI雛形（React）
+- [ ] プレビューグリッド実装
+- [ ] 進捗バー実装
+- [ ] 状態管理（Zustand）
+- [ ] エラーハンドリング基本
 
-Week 4:
-- [ ] E2E環境構築
-- [ ] 10サイトテスト実装
-- [ ] パフォーマンステスト
-- [ ] ストア素材作成
+Week 5 (Day 29-35): Pro機能・ZIP
+- [ ] IndexedDB設定（idb）
+- [ ] diff-engine実装（差分計算）
+- [ ] filename実装（テンプレート評価）
+- [ ] zipper実装（JSZip）
+- [ ] ダウンロード実装
+
+Week 6 (Day 36-42): テスト・最適化
+- [ ] E2E環境構築（Playwright）
+- [ ] 5サイトテスト実装（Amazon, Unsplash, CNN, Wikipedia, GitHub）
+- [ ] パフォーマンステスト（100枚ベンチマーク）
+- [ ] メモリ最適化
+- [ ] バグ修正
+
+Week 6-7 (Day 43-45): リリース準備
+- [ ] ストア素材作成（スクリーンショット、アイコン、動画）
 - [ ] プライバシーポリシー作成
+- [ ] ユーザーガイド作成
+- [ ] 最終E2E実行
+- [ ] Chrome Web Store申請
 
-Week 4末:
-- [ ] 検出率95%達成
-- [ ] P50 ≤10秒達成
-- [ ] ストア申請準備完了
+MVP完了基準（Day 45）:
+- [ ] 5サイト検出率 85-90%達成
+- [ ] 100枚処理 P50 ≤10秒達成
+- [ ] クラッシュ率 <2%
+- [ ] ストア申請完了
 ```
 
 ---
@@ -2336,7 +2838,23 @@ Week 4末:
 ## 18. 仕様変更履歴
 
 ```
-v1.0 (2025-01-XX)
+v1.1 (2025-01-21) - 現実的調整版
+主要変更:
+- プロジェクト期間: 90日 → 120-150日（予備期間含む）
+- MVP期間: 30日 → 45日（現実的工数）
+- 検出エンジン: 8種類 → MVP 5種類（段階的拡張）
+- E2Eテスト: 10サイト → MVP 5サイト（段階的拡張）
+- 成功指標調整: DAU、転換率、MRR等を現実的な値に
+- Service Worker Keep-Alive戦略追加（MV3対策）
+- 並列制御とメモリ管理の詳細化
+- srcset解析とスクロール停止条件の明確化
+- Proライセンス検証のキャッシュ戦略追加
+- 新規セクション追加:
+  - 5.10: コンテキスト抽出仕様
+  - 8.4: パフォーマンスプロファイリング
+  - 8.5: ブラウザAPI依存リスク
+
+v1.0 (2025-01-15)
 - 初版作成
 - MVP仕様確定
 - 90日計画策定
