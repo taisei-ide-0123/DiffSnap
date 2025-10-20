@@ -1,8 +1,8 @@
-# DiffSnap 技術仕様書 v1.0
+# DiffSnap 技術仕様書 v1.3
 
 **対象**: AIコーディングエージェント
 **更新日**: 2025-10-21
-**バージョン**: 1.1 (調整版)
+**バージョン**: 1.3 (個人開発最適化版)
 **プロジェクト期間**: 120-150日（MVP: 0-45日、Pro: 46-90日、安定化: 91-120日、予備: 121-150日）
 
 ---
@@ -2609,46 +2609,116 @@ PR承認基準:
 5. 可読性・保守性
 ```
 
-### 12.3 CI/CD パイプライン
+### 12.3 品質チェックスクリプト（個人開発最適化）
+
+**方針**: CI/CDは不要、ローカルスクリプトで同等の品質担保
 
 ```
-GitHub Actions ワークフロー:
+package.json scripts設定:
 
-on: [push, pull_request]
+{
+  "scripts": {
+    // 開発用
+    "dev": "vite",
+    "build": "vite build",
 
-jobs:
-  lint:
-    - pnpm install
-    - pnpm lint
-    - pnpm format --check
+    // 品質チェック（個別）
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
 
-  typecheck:
-    - pnpm tsc --noEmit
+    // 統合チェック（リリース前実行）
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "check:full": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e",
 
-  test:
-    - pnpm test
-    - カバレッジレポート生成
-    - 80%未満で警告
+    // リリースワークフロー
+    "prebuild": "pnpm check",
+    "release": "pnpm check:full && pnpm build && pnpm zip",
+    "zip": "node scripts/create-release-zip.js"
+  }
+}
 
-  build:
-    - pnpm build
-    - dist/ の整合性チェック
-    - マニフェスト検証
+主要スクリプト:
 
-  e2e:
-    - Playwright インストール
-    - pnpm test:e2e
-    - スクリーンショット保存（失敗時）
+1. scripts/create-release-zip.js
+   目的: dist/ を Chrome Web Store用ZIPに圧縮
 
-  package:
-    - runs-on: main ブランチのみ
-    - pnpm zip
-    - artifact アップロード
+   処理:
+   - manifest.json のバージョン読み取り
+   - diffsnap-v{version}.zip 生成
+   - 不要ファイル除外（.map, .DS_Store等）
+   - サイズ検証（>10MBで警告）
+   - SHA-256ハッシュ生成（検証用）
 
-デプロイ（手動トリガー）:
-  - Chrome Web Store API経由
-  - zip アップロード
-  - 審査提出
+2. scripts/validate-manifest.js
+   目的: manifest.json の整合性チェック
+
+   検証項目:
+   - 必須フィールド存在確認
+   - バージョン形式（semver）
+   - 権限の妥当性
+   - アイコンファイル存在
+   - content_scripts パス確認
+
+3. scripts/check-bundle-size.js
+   目的: ビルドサイズ監視
+
+   処理:
+   - dist/ 各ファイルサイズ計測
+   - 前回ビルドとの差分表示（.bundle-size.json保存）
+   - 閾値超過で警告:
+     - background.js: >150KB
+     - content.js: >100KB
+     - popup.js: >300KB
+   - 合計 >500KB で警告
+
+4. scripts/pre-commit.sh（任意、git hooks用）
+   目的: コミット前の自動チェック
+
+   処理:
+   - pnpm lint（staged filesのみ）
+   - pnpm typecheck
+   - テストは省略（高速化）
+
+開発ワークフロー:
+
+日常開発:
+1. コード変更
+2. pnpm dev で動作確認
+3. git commit（自動で pre-commit hook実行）
+
+リリース前:
+1. pnpm check:full（全テスト実行、5-10分）
+2. 手動QA（実サイトで動作確認）
+3. pnpm release（check + build + zip）
+4. Chrome Web Storeへ手動アップロード
+
+メリット（個人開発）:
+✅ コスト: 完全無料（GitHub Actions不要）
+✅ シンプル: スクリプト4つのみ、理解容易
+✅ 高速: ローカル実行、待機なし
+✅ 柔軟: 必要に応じてスキップ可能
+✅ 学習コスト: pnpm scriptsの基礎知識のみ
+
+デメリット:
+❌ 自動化度: 手動実行必須（忘れるリスク）
+❌ 履歴: CIダッシュボードなし（ローカルログのみ）
+
+対策:
+- pre-commit hook で最低限の品質担保
+- リリースチェックリスト作成（RELEASE.md）
+- 重要: pnpm release を必ず実行する習慣化
+
+Phase 2以降（必要に応じて）:
+- GitHub Actions追加（無料枠で十分）
+- プルリクエスト時のみ自動実行
+- main ブランチ保護
 ```
 
 ### 12.4 ローカル開発環境
@@ -3113,8 +3183,9 @@ Phase 1 (MVP) チェックリスト（現実的スケジュール）:
 
 Week 1-2 (Day 1-14): 基盤・検出エンジン
 - [ ] プロジェクト雛形作成（Vite + React + Tailwind）
-- [ ] CI/CD設定（GitHub Actions）
-- [ ] url-utils実装（正規化、recordID）
+- [ ] 品質チェックスクリプト設定（package.json scripts）
+- [ ] scripts/ディレクトリ作成（4スクリプト）
+- [ ] url-utils実装（正規化、recordID、重要パラメータ抽出）
 - [ ] hasher実装（SHA-256）
 - [ ] detector実装（5種類のみ: img, picture, srcset, CSS bg, canvas）
 - [ ] 単体テスト（url-utils, hasher, detector基本）
@@ -3152,86 +3223,19 @@ Week 6-7 (Day 43-45): リリース準備
 - [ ] ストア素材作成（スクリーンショット、アイコン、動画）
 - [ ] プライバシーポリシー作成
 - [ ] ユーザーガイド作成
-- [ ] 最終E2E実行
-- [ ] Chrome Web Store申請
+- [ ] RELEASE.md作成（リリースチェックリスト）
+- [ ] pnpm check:full 実行（全テスト）
+- [ ] 手動QA（5サイトで動作確認）
+- [ ] pnpm release 実行（ZIP生成）
+- [ ] Chrome Web Store手動アップロード
 
 MVP完了基準（Day 45）:
 - [ ] 5サイト検出率 85-90%達成
 - [ ] 100枚処理 P50 ≤10秒達成
 - [ ] クラッシュ率 <2%
+- [ ] pnpm release がエラーなく完了
 - [ ] ストア申請完了
 ```
-
----
-
-## 18. 仕様変更履歴
-
-```
-v1.2 (2025-01-21) - 重大課題修正版（フィードバック反映）
-重大な修正:
-- 【課題1】recordID設計の脆弱性修正:
-  - queryHash: 16桁 → 32桁（衝突リスク 2^-64 → 2^-128）
-  - 重要パラメータ抽出ロジック追加（ドメイン別設定）
-  - 追跡パラメータ除外（utm_*, fbclid等）
-
-- 【課題4】Service Worker Keep-Alive戦略強化:
-  - Alarms API による自律的 Keep-Alive（UI非依存）
-  - チェックポイント機構実装（5枚ごと保存、中断再開可能）
-  - UI非依存の進捗通知（chrome.action.setBadgeText）
-  - テスト戦略追加（強制停止→再開確認）
-
-- 【課題3】メモリ管理の保守化:
-  - ソフトリミット: 256MB → 150MB（50%安全マージン）
-  - ハードリミット: 256MB → 200MB
-  - メモリ推定式改善（Blob 2倍係数、実測ベース調整）
-  - 処理量制限アプローチ追加（MAX_CONCURRENT_IMAGES=50）
-
-- 【課題2】並列制御のドメイン正規化改善:
-  - CDNマッピング戦略追加（Pro Phase以降）
-  - MVP Phase 1: hostname そのまま使用（シンプル実装）
-  - Phase 2: 主要CDN 50パターン追加
-
-- 【課題5】E2Eテスト安定化戦略:
-  - モックサーバー導入計画（Pro Phase）
-  - テスト階層化（CI/手動/ナイトリー）
-  - Snapshotテスト併用
-  - MVP Phase 1: 実サイトテスト許容的運用
-
-緊急度評価:
-- 課題1（recordID）: 高 → Week 1必須修正
-- 課題4（Keep-Alive）: 高 → Week 2必須修正
-- 課題3（メモリ）: 中 → Week 5推奨調整
-- 課題2（並列）: 中 → Phase 2対応
-- 課題5（E2E）: 低 → 運用で吸収可能
-
-v1.1 (2025-01-21) - 現実的調整版
-主要変更:
-- プロジェクト期間: 90日 → 120-150日（予備期間含む）
-- MVP期間: 30日 → 45日（現実的工数）
-- 検出エンジン: 8種類 → MVP 5種類（段階的拡張）
-- E2Eテスト: 10サイト → MVP 5サイト（段階的拡張）
-- 成功指標調整: DAU、転換率、MRR等を現実的な値に
-- Service Worker Keep-Alive戦略追加（MV3対策）
-- 並列制御とメモリ管理の詳細化
-- srcset解析とスクロール停止条件の明確化
-- Proライセンス検証のキャッシュ戦略追加
-- 新規セクション追加:
-  - 5.10: コンテキスト抽出仕様
-  - 8.4: パフォーマンスプロファイリング
-  - 8.5: ブラウザAPI依存リスク
-
-v1.0 (2025-01-15)
-- 初版作成
-- MVP仕様確定
-- 90日計画策定
-
-将来の変更:
-- 実装過程での調整は CHANGELOG.md に記録
-- 仕様変更は本ドキュメントを更新
-- バージョン管理: Git タグで追跡
-```
-
----
 
 **この仕様書の使い方（AIコーディングエージェント向け）**
 
