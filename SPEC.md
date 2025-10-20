@@ -547,7 +547,7 @@ normalizeUrl('image.jpg?v=2', 'https://example.com/')
 → 'https://example.com/image.jpg?v=2'
 ```
 
-#### 5.3.2 レコードID生成
+#### 5.3.2 レコードID生成（改善版: 衝突リスク削減）
 
 ```
 makeRecordId(url: string): string
@@ -555,21 +555,70 @@ makeRecordId(url: string): string
 目的: 差分台帳の一意キー生成
 形式: "${origin}${pathname}:${queryHash}"
 
-queryHash生成:
-1. URLSearchParamsでクエリパース
-2. エントリを key でソート
-3. 正規化された文字列を生成
-4. SHA-256ハッシュの最初の16文字を使用
+重大な改善点:
+- queryHash長: 16桁 → 32桁（衝突リスク 2^-64 → 2^-128）
+- 重要パラメータ抽出: ドメイン別設定で精度向上
+
+queryHash生成（改善版）:
+
+1. 重要パラメータ抽出:
+   significantParams = extractSignificantParams(query, hostname)
+
+   // ドメイン別の重要パラメータ定義
+   SIGNIFICANT_PARAMS = {
+     'amazon.com': ['dp', 'asin'],           // 商品ID
+     'ebay.com': ['item'],                   // 商品ID
+     'youtube.com': ['v'],                   // 動画ID
+     'twitter.com': ['status'],              // ツイートID
+     'default': ['id', 'pid', 'product_id', 'sku', 'item_id']
+   }
+
+   ロジック:
+   a. hostname に対応するパラメータリストを取得
+   b. クエリから該当パラメータのみ抽出
+   c. 該当なしの場合: 全パラメータを使用（後方互換）
+
+2. パラメータ正規化:
+   - キーでソート
+   - 値をエンコード正規化
+   - 連結: "key1=value1&key2=value2"
+
+3. SHA-256ハッシュ化:
+   hash = SHA-256(normalizedQuery)
+   queryHash = hash.slice(0, 32)  // 32桁（16進数128ビット）
+
+4. recordID構築:
+   return `${origin}${pathname}:${queryHash}`
+
+理論的衝突確率:
+- 16桁: 2^-64 ≈ 5.4×10^-20 (1京分の5)
+- 32桁: 2^-128 ≈ 2.9×10^-39 (実質ゼロ)
+
+実用的考慮:
+- クエリエントロピー低下を重要パラメータ抽出で補完
+- 例: /product?id=123&utm_*=... → id=123 のみ使用
+- 追跡パラメータ（utm_*, fbclid等）を除外
 
 例:
-makeRecordId('https://example.com/page?a=1&b=2')
-→ 'https://example.com/page:abc123def4567890'
 
-makeRecordId('https://example.com/page?b=2&a=1')
-→ 'https://example.com/page:abc123def4567890' (同一)
+入力1: 'https://amazon.com/dp/B08XYZ?tag=abc&ref=xyz'
+重要パラメータ: dp=B08XYZ
+queryHash: SHA-256("dp=B08XYZ").slice(0, 32)
+→ 'https://amazon.com/dp:a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6'
 
-makeRecordId('https://example.com/page?a=2&b=1')
-→ 'https://example.com/page:fed098cba7654321' (異なる)
+入力2: 'https://example.com/product?id=456&sort=price&page=2'
+重要パラメータ: id=456（defaultルール）
+queryHash: SHA-256("id=456").slice(0, 32)
+→ 'https://example.com/product:f1e2d3c4b5a69788...'
+
+入力3（重要パラメータなし）: 'https://blog.com/post?date=2025-01-21'
+重要パラメータ: なし → 全パラメータ使用
+queryHash: SHA-256("date=2025-01-21").slice(0, 32)
+→ 'https://blog.com/post:9a8b7c6d5e4f3a2b...'
+
+Phase 2拡張:
+- ユーザーカスタムルール（Settings UI）
+- 機械学習による自動パラメータ重要度推定
 ```
 
 ### 5.4 ハッシュ計算（SHA-256）
@@ -610,7 +659,7 @@ hashBlob(blob: Blob): Promise<string>
 - 差分台帳への保存時
 ```
 
-### 5.5 Service Worker Keep-Alive戦略（MV3重要対策）
+### 5.5 Service Worker Keep-Alive戦略（MV3重要対策、強化版）
 
 #### 5.5.0 MV3 Service Worker制約への対応
 
@@ -619,57 +668,146 @@ hashBlob(blob: Blob): Promise<string>
 MV3 Service Workerは30秒間無操作で自動休止
 → 長時間処理（100枚fetch 10-15秒）で休止リスク
 → IndexedDB接続切断、進捗状態喪失
+→ ユーザーがPopupを閉じると Keep-Alive ポート切断
 
-対策: Keep-Alive + 状態永続化
+対策: Alarms API + チェックポイント機構（堅牢化）
 
-1. Keep-Alive Ping戦略:
+1. Alarms API による自律的 Keep-Alive（推奨実装）:
+
+   問題点（旧仕様）:
+   - chrome.runtime.connect() はUI依存
+   - Popup閉じる → ポート切断 → Keep-Alive失効
+   - Content Script アンロード → 同様の問題
+
+   改善策:
+   Service Worker自身がAlarms APIで定期的に自己起動
 
    実装:
-   - Background起動時に chrome.runtime.connect() でポート開設
-   - 20秒ごとに ping メッセージ送信（30秒より短い間隔）
-   - Popup/Content Scriptが接続を維持
+   // Background Service Worker起動時
+   chrome.alarms.create('keep-alive', {
+     periodInMinutes: 0.5  // 30秒ごと
+   });
 
-   コード構造:
-   let keepAlivePort: chrome.runtime.Port | null = null;
+   chrome.alarms.onAlarm.addListener(async (alarm) => {
+     if (alarm.name === 'keep-alive') {
+       // 処理中かチェック
+       const { activeProcessing } = await chrome.storage.session.get(['activeProcessing']);
 
-   function startKeepAlive() {
-     keepAlivePort = chrome.runtime.connect({ name: 'keep-alive' });
-     keepAlivePort.onDisconnect.addListener(() => {
-       keepAlivePort = null;
-       // 再接続は次の処理開始時
+       if (activeProcessing) {
+         console.log('Keep-alive: processing continues');
+         // このコード実行自体がService Workerを起動 → 30秒カウンタリセット
+
+         // 追加: 処理再開ロジック（後述のチェックポイントから）
+         await resumeProcessingIfNeeded();
+       }
+     }
+   });
+
+   メリット:
+   - UI非依存（Popup閉じても継続）
+   - タブ遷移やContent Scriptアンロードに強い
+   - 信頼性高い（Chrome公式推奨パターン）
+
+2. チェックポイント機構（処理の冪等化）:
+
+   問題: Service Worker休止時に処理中断
+   対策: 5枚ごとにチェックポイント保存、再開可能に
+
+   データ構造:
+   interface ProcessingCheckpoint {
+     tabId: number;
+     url: string;
+     candidates: ImageCandidate[];      // 全候補
+     completedIndices: number[];        // 完了済みindex配列
+     failedCandidates: FailedImage[];   // 失敗リスト
+     lastCheckpointAt: number;          // 最終保存時刻
+     phase: 'fetching' | 'zipping';     // 処理フェーズ
+   }
+
+   チェックポイント保存:
+   async function saveCheckpoint(checkpoint: ProcessingCheckpoint) {
+     await chrome.storage.session.set({
+       [`checkpoint_${checkpoint.tabId}`]: checkpoint
      });
    }
 
-   setInterval(() => {
-     if (keepAlivePort) {
-       keepAlivePort.postMessage({ type: 'ping' });
+   処理再開ロジック:
+   async function resumeProcessingIfNeeded() {
+     const keys = await chrome.storage.session.getKeys();
+     const checkpointKeys = keys.filter(k => k.startsWith('checkpoint_'));
+
+     for (const key of checkpointKeys) {
+       const checkpoint = await chrome.storage.session.get(key);
+       const elapsed = Date.now() - checkpoint.lastCheckpointAt;
+
+       if (elapsed < 60000) {  // 1分以内なら再開
+         await resumeFromCheckpoint(checkpoint);
+       } else {
+         // 古いチェックポイントは削除
+         await chrome.storage.session.remove(key);
+       }
      }
-   }, 20000);
+   }
 
-2. 進捗状態の永続化:
+   async function resumeFromCheckpoint(checkpoint: ProcessingCheckpoint) {
+     const { candidates, completedIndices } = checkpoint;
+     const remaining = candidates.filter((_, i) =>
+       !completedIndices.includes(i)
+     );
 
-   chrome.storage.session に保存:
-   - runState_${tabId}: 処理状態
-   - progress_${tabId}: 完了数/総数
-   - failedUrls_${tabId}: 失敗リスト
+     console.log(`Resuming: ${remaining.length} images remaining`);
 
-   休止からの復帰時:
-   - session storage から状態復元
-   - 未完了処理を再開
-   - UIへ状態通知
+     for (let i = 0; i < remaining.length; i++) {
+       const result = await fetchImage(remaining[i]);
+
+       // 5枚ごとにチェックポイント更新
+       if (i % 5 === 0) {
+         checkpoint.completedIndices.push(i);
+         checkpoint.lastCheckpointAt = Date.now();
+         await saveCheckpoint(checkpoint);
+       }
+     }
+   }
 
 3. 処理分割戦略（100枚超の場合）:
 
    - 25枚ごとにチャンクへ分割
-   - 各チャンク完了後に状態保存
+   - 各チャンク完了後にチェックポイント保存
    - 休止発生時も最大25枚のロスのみ
-   - 再開時は次チャンクから継続
+   - Alarms onAlarm で自動再開
 
-4. 代替案（Phase 2検討）:
+4. UI非依存の進捗通知:
 
-   - Offscreen Document API使用（永続DOM環境）
-   - Web Worker への処理移譲（独立スレッド）
-   - 現状: Keep-Alive優先（シンプル）
+   問題: Popup閉じた状態でも進捗表示したい
+   対策: chrome.action.setBadgeText() 使用
+
+   実装:
+   async function updateBadge(completed: number, total: number) {
+     const percentage = Math.floor((completed / total) * 100);
+     await chrome.action.setBadgeText({ text: `${percentage}%` });
+     await chrome.action.setBadgeBackgroundColor({ color: '#3B82F6' });
+   }
+
+   完了時:
+   await chrome.action.setBadgeText({ text: '✓' });
+   await chrome.action.setBadgeBackgroundColor({ color: '#10B981' });
+
+5. フォールバック戦略:
+
+   Alarms API失敗時（理論上発生しない）:
+   - chrome.runtime.connect() の併用
+   - 両方で Keep-Alive を試みる
+   - どちらか一方が動作すればOK
+
+6. テスト戦略:
+
+   - DevTools で Service Worker を手動停止
+   - 再起動後にチェックポイントから復帰確認
+   - 100枚処理中に強制停止→再開テスト
+
+Phase 2検討:
+- Offscreen Document API（DOM永続環境、より安定）
+- Web Worker への処理移譲（独立スレッド）
 ```
 
 ### 5.6 並列制御（Parallel Controller）
@@ -686,17 +824,81 @@ MV3 Service Workerは30秒間無操作で自動休止
 - グローバル: ブラウザのメモリ制約
 - ドメイン別: レート制限回避、サーバー負荷分散
 
-ドメイン抽出ロジック:
-1. new URL(imageUrl).hostname 取得
-2. サブドメイン正規化:
-   - cdn.example.com → example.com (CDNと判定)
-   - www.example.com → example.com
-   - api.example.com → example.com
+ドメイン抽出ロジック（改善版: CDN対応強化）:
 
-   正規化ルール:
-   a. Public Suffix List チェック（co.jp, com 等）
-   b. eTLD+1 抽出（example.com）
-   c. 例外: s3.amazonaws.com, cloudfront.net 等は完全一致
+問題認識:
+- 同一サービスのCDNサブドメインが複数存在
+- 例: images-na.ssl-images-amazon.com, m.media-amazon.com
+- 現状: 別ドメイン扱い → 並列制限が効かない
+
+改善策1: CDNマッピング（推奨、Pro Phase以降）
+
+const CDN_MAPPINGS = {
+  // Amazon CDN
+  'ssl-images-amazon.com': 'amazon.com',
+  'images-na.ssl-images-amazon.com': 'amazon.com',
+  'images-fe.ssl-images-amazon.com': 'amazon.com',
+  'm.media-amazon.com': 'amazon.com',
+
+  // Cloudflare CDN
+  'cdn.cloudflare.net': (url) => extractOriginFromReferer(url),
+
+  // Cloudfront
+  'cloudfront.net': 'cloudfront.net',  // サブドメイン保持
+
+  // その他主要CDN（Phase 2で50-100パターン追加）
+  'akamaized.net': 'akamaized.net',
+  'fastly.net': 'fastly.net',
+  // ...
+};
+
+function extractDomain(url: string): string {
+  const hostname = new URL(url).hostname;
+
+  // 1. CDNマッピング確認（部分一致）
+  for (const [pattern, origin] of Object.entries(CDN_MAPPINGS)) {
+    if (hostname.includes(pattern)) {
+      return typeof origin === 'function' ? origin(url) : origin;
+    }
+  }
+
+  // 2. eTLD+1フォールバック
+  return extractETLDPlusOne(hostname);
+}
+
+function extractETLDPlusOne(hostname: string): string {
+  // 簡易実装（Public Suffix List完全版はライブラリ使用）
+  const parts = hostname.split('.');
+  if (parts.length >= 2) {
+    return parts.slice(-2).join('.');  // example.com
+  }
+  return hostname;
+}
+
+改善策2: シンプル実装（MVP Phase 1推奨）
+
+トレードオフ:
+- CDN判定を諦め、サブドメイン単位で制限
+- 並列効率は低下するが実装シンプル
+- 大半のサイトで問題なし
+
+function extractDomain(url: string): string {
+  return new URL(url).hostname;  // そのまま使用
+}
+
+メリット:
+- 実装容易（1行）
+- CDNマッピングメンテナンス不要
+- 誤判定リスクゼロ
+
+デメリット:
+- 並列効率やや低下
+- 例: cdn1.example.com と cdn2.example.com で別カウント
+
+実装方針:
+- MVP Phase 1: シンプル実装（hostname そのまま）
+- Pro Phase以降: CDNマッピング追加（主要50パターン）
+- ユーザーフィードバックで優先度判断
 
 3. ドメインカウンタ管理:
    domainCounts = Map<string, number>
@@ -1414,6 +1616,81 @@ Pro Tier:
 - 早期リリース優先、完璧主義回避
 - 段階的拡張で品質維持とスピード両立
 
+**E2Eテスト安定化戦略（改善版）**:
+
+問題認識:
+- 外部サイト依存でテスト脆弱
+- サイトUI変更でテスト突然失敗（False Negative）
+- レート制限やCAPTCHAでCI/CD不安定
+
+改善策:
+
+1. モックサーバー導入（Pro Phase以降推奨）:
+
+   tests/fixtures/mock-sites/
+     ├── amazon-product.html      # 実サイトの簡易再現
+     ├── unsplash-gallery.html
+     ├── cnn-article.html
+     ├── wikipedia-article.html
+     └── github-repo.html
+
+   // Playwright でローカルサーバー起動
+   test('Amazon-like page', async ({ page }) => {
+     await page.goto('http://localhost:3000/fixtures/amazon-product.html');
+     // 拡張機能テスト実行
+   });
+
+   メリット:
+   - 外部依存ゼロ（高速・安定）
+   - サイト変更の影響なし
+   - CI/CDで確実に実行可能
+
+   デメリット:
+   - 実サイトとの乖離リスク
+   - メンテナンス必要（年1-2回）
+
+2. テスト階層化（MVP Phase 1推奨）:
+
+   // CI/CD: モックサイト（高速・安定、ブロッキング）
+   test.describe('Mock Sites (CI)', () => {
+     test('Amazon-like structure', ...);
+   });
+
+   // 手動QA: 実サイト（リリース前のみ）
+   test.describe('Real Sites (Manual)', () => {
+     test.skip('Amazon.com actual', ...);  // CI ではスキップ
+   });
+
+   // ナイトリー: 実サイト（失敗許容、通知のみ）
+   test.describe('Real Sites (Nightly)', () => {
+     test('Amazon.com monitoring', ...);
+   });
+
+3. Snapshot テスト併用:
+
+   // 初回実行時にページHTML保存
+   const html = await page.content();
+   fs.writeFileSync('snapshots/amazon-20250121.html', html);
+
+   // 以降はスナップショットでテスト
+   // 月1回、実サイトでスナップショット更新
+
+4. 実装方針:
+
+   MVP Phase 1:
+   - 実サイトテスト（5サイト）
+   - CI/CDは許容的（失敗してもwarning）
+   - 手動QA重視
+
+   Pro Phase:
+   - モックサーバー構築
+   - CI/CDはモックのみ（ブロッキング）
+   - 実サイトはナイトリーへ移行
+
+   安定期:
+   - スナップショット自動更新
+   - 実サイト変化検知で通知
+
 #### 7.2.2 テストシナリオ
 
 ```
@@ -1602,32 +1879,84 @@ CSP厳格サイト（GitHub等）:
 ```
 最適化項目:
 
-1. メモリ管理（詳細戦略）:
+1. メモリ管理（保守的戦略、誤差を見込む）:
 
    a. Blob即座破棄:
       - fetch完了後、ハッシュ計算完了したら即座破棄
       - URL.revokeObjectURL() を 60秒後に呼び出し
       - WeakMap でBlob参照追跡
 
-   b. メモリプール管理:
-      - 最大メモリ使用量: 256MB（Chrome拡張推奨値）
-      - 現在メモリ推定: activeBlobs.size × 平均Blobサイズ
-      - 推定値 > 200MB で警告、250MB でエラー
+   b. メモリプール管理（改善版: 誤差対策）:
 
-   c. 処理分割（大量画像対策）:
-      - 50枚ごとにチャンク分割
-      - 各チャンク完了後に強制GC待機（100ms）
-      - performance.memory.usedJSHeapSize 監視（Chrome専用）
+      問題認識:
+      - performance.memory.usedJSHeapSize はJSオブジェクトのみ計測
+      - Blobはネイティブメモリ（C++層）で実際の消費量不明
+      - 推定誤差 30-50%（実測より過小評価）
 
-   d. メモリ圧迫時の動的調整:
-      - メモリ使用 > 200MB → 並列数 8 → 4 に削減
-      - メモリ使用 > 230MB → 並列数 4 → 2 に削減
-      - メモリ使用 > 250MB → 処理一時停止、ユーザー通知
+      保守的リミット設定:
+      - ソフトリミット: 256MB → 150MB（50%安全マージン）
+      - ハードリミット: 256MB → 200MB（確実な安全圏）
+      - 理由: 誤差を見込んで早めに警告・制限
+
+      メモリ推定式（改善版）:
+      function estimateMemoryUsage(): number {
+        let estimate = 0;
+
+        // 1. JSヒープメモリ（正確）
+        if (performance.memory) {
+          estimate += performance.memory.usedJSHeapSize;
+        }
+
+        // 2. Blobメモリ（推定、2倍の安全係数）
+        const blobSize = Array.from(activeBlobs.values())
+          .reduce((sum, blob) => sum + blob.size, 0);
+        estimate += blobSize * 2;  // 2倍で過大評価し安全側へ
+
+        // 3. その他固定オーバーヘッド
+        estimate += 50 * 1024 * 1024;  // 50MB（React、Zustand等）
+
+        return estimate;
+      }
+
+      実測データ収集（開発モード）:
+      - 10枚、50枚、100枚処理時の実メモリをログ
+      - タスクマネージャの値と推定値を比較
+      - 誤差パターンを分析し係数調整
+
+   c. 処理分割（大量画像対策、実用的アプローチ）:
+
+      代替案: メモリ推定を諦め、処理量で制限（シンプル・確実）
+
+      const MAX_CONCURRENT_IMAGES = 50;  // 同時処理上限
+      const MAX_SINGLE_IMAGE_SIZE = 20MB; // 個別上限
+
+      チャンク処理:
+      for (let i = 0; i < candidates.length; i += MAX_CONCURRENT_IMAGES) {
+        const chunk = candidates.slice(i, i + MAX_CONCURRENT_IMAGES);
+        await processChunk(chunk);
+        // 強制GC待機
+        await sleep(100);
+      }
+
+      メリット:
+      - メモリ推定不要（計測誤差の影響なし）
+      - シンプルで確実
+      - 50枚 × 平均2MB = 100MB程度（安全圏）
+
+   d. メモリ圧迫時の動的調整（推定使用時）:
+      - 推定値 > 150MB → 並列数 8 → 4 に削減
+      - 推定値 > 170MB → 並列数 4 → 2 に削減
+      - 推定値 > 190MB → 処理一時停止、ユーザー通知
 
    e. 大容量画像対策:
       - 個別Blob > 10MB で警告ログ
-      - 個別Blob > 20MB でスキップ（ZIP容量考慮）
+      - 個別Blob > 20MB でスキップ（ZIP容量・メモリ考慮）
       - 累積ZIP > 800MB で「残り画像は個別DL推奨」通知
+
+   f. 推奨実装方針（MVP Phase 1）:
+      - メモリ推定は参考値として使用
+      - 主制御: 処理量制限（MAX_CONCURRENT_IMAGES）
+      - Phase 2: 実測データで推定式チューニング
 
 2. ネットワーク最適化:
    - 並列制御（8並列、メモリ圧迫時は動的削減）
@@ -2838,6 +3167,43 @@ MVP完了基準（Day 45）:
 ## 18. 仕様変更履歴
 
 ```
+v1.2 (2025-01-21) - 重大課題修正版（フィードバック反映）
+重大な修正:
+- 【課題1】recordID設計の脆弱性修正:
+  - queryHash: 16桁 → 32桁（衝突リスク 2^-64 → 2^-128）
+  - 重要パラメータ抽出ロジック追加（ドメイン別設定）
+  - 追跡パラメータ除外（utm_*, fbclid等）
+
+- 【課題4】Service Worker Keep-Alive戦略強化:
+  - Alarms API による自律的 Keep-Alive（UI非依存）
+  - チェックポイント機構実装（5枚ごと保存、中断再開可能）
+  - UI非依存の進捗通知（chrome.action.setBadgeText）
+  - テスト戦略追加（強制停止→再開確認）
+
+- 【課題3】メモリ管理の保守化:
+  - ソフトリミット: 256MB → 150MB（50%安全マージン）
+  - ハードリミット: 256MB → 200MB
+  - メモリ推定式改善（Blob 2倍係数、実測ベース調整）
+  - 処理量制限アプローチ追加（MAX_CONCURRENT_IMAGES=50）
+
+- 【課題2】並列制御のドメイン正規化改善:
+  - CDNマッピング戦略追加（Pro Phase以降）
+  - MVP Phase 1: hostname そのまま使用（シンプル実装）
+  - Phase 2: 主要CDN 50パターン追加
+
+- 【課題5】E2Eテスト安定化戦略:
+  - モックサーバー導入計画（Pro Phase）
+  - テスト階層化（CI/手動/ナイトリー）
+  - Snapshotテスト併用
+  - MVP Phase 1: 実サイトテスト許容的運用
+
+緊急度評価:
+- 課題1（recordID）: 高 → Week 1必須修正
+- 課題4（Keep-Alive）: 高 → Week 2必須修正
+- 課題3（メモリ）: 中 → Week 5推奨調整
+- 課題2（並列）: 中 → Phase 2対応
+- 課題5（E2E）: 低 → 運用で吸収可能
+
 v1.1 (2025-01-21) - 現実的調整版
 主要変更:
 - プロジェクト期間: 90日 → 120-150日（予備期間含む）
