@@ -22,6 +22,13 @@ export default defineConfig({
         'src/background/index.ts',
         'src/content/index.ts',
       ],
+      // MVP目標: 80%カバレッジ (CLAUDE.md Section 9.3参照)
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 75,
+        statements: 80,
+      },
     },
   },
   resolve: {

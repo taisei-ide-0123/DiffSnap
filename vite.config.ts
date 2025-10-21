@@ -4,7 +4,7 @@ import { resolve } from 'path'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     viteStaticCopy({
@@ -49,12 +49,12 @@ export default defineConfig({
         },
       },
     },
-    sourcemap: process.env.NODE_ENV === 'development',
-    minify: process.env.NODE_ENV === 'production',
+    sourcemap: mode === 'development',
+    minify: mode === 'production' ? 'esbuild' : false,
   },
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
     },
   },
-})
+}))
