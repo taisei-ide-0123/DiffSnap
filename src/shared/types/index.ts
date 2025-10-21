@@ -1,11 +1,11 @@
 // Shared type definitions for DiffSnap
 
 export interface ImageCandidate {
-  url: string;
-  source: ImageSource;
-  width?: number;
-  height?: number;
-  alt?: string;
+  url: string
+  source: ImageSource
+  width?: number
+  height?: number
+  alt?: string
 }
 
 export type ImageSource =
@@ -16,10 +16,10 @@ export type ImageSource =
   | 'canvas'
   | 'svg'
   | 'video'
-  | 'iframe';
+  | 'iframe'
 
 export interface DetectionResult {
-  candidates: ImageCandidate[];
-  timestamp: number;
-  url: string;
+  candidates: ImageCandidate[]
+  timestamp: number
+  url: string
 }

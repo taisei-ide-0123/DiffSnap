@@ -1,4 +1,4 @@
-function App() {
+export const App = () => {
   return (
     <div className="w-[400px] h-[600px] p-4 bg-gray-50">
       <h1 className="text-2xl font-bold text-primary-600 mb-4">DiffSnap</h1>
@@ -7,7 +7,5 @@ function App() {
         <p className="text-sm text-gray-600">開発中...</p>
       </div>
     </div>
-  );
+  )
 }
-
-export default App;
