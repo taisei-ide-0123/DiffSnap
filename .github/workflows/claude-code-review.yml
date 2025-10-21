@@ -3,26 +3,33 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize]
-
-concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+    # Optional: Only run on specific file changes
+    # paths:
+    #   - "src/**/*.ts"
+    #   - "src/**/*.tsx"
+    #   - "src/**/*.js"
+    #   - "src/**/*.jsx"
 
 jobs:
   claude-review:
+    # Optional: Filter by PR author
+    # if: |
+    #   github.event.pull_request.user.login == 'external-contributor' ||
+    #   github.event.pull_request.user.login == 'new-developer' ||
+    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
+      contents: read
+      pull-requests: read
+      issues: read
       id-token: write
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Run Claude Code Review
         id: claude-review
@@ -30,36 +37,21 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
-            Execute comprehensive code review for @taisei-ide-0123 in Japanese.
-            
-            Process:
-            1. Run `gh pr diff --stat` for change overview
-            2. Use `git log`, `git blame`, `grep` for context analysis
-            3. Scan all modified files for issues
-            4. Categorize findings: MUST/SHOULD/NICE
-            5. Post single consolidated comment
-            
-            Output format:
-            **@taisei-ide-0123**
-            ### Summary
-            - Files: X, Lines: +A -D, Severity: High/Med/Low
-            - Concerns: [2-3 sentences]
-            
-            ### MUST FIX
-            - [file:line] issue / reason / fix
-            
-            ### SHOULD FIX
-            - [file:line] issue / reason / fix
-            
-            ### NICE TO HAVE
-            - [file:line] improvement / benefit / steps
-            
-            ### Good Implementation
-            - [positive finding with reason]
-            
-            ### Decision
-            - Status: APPROVE|REQUEST_CHANGES|BLOCK
-            - Reason: [one sentence]
-            - Actions: [specific steps]
-          
-          claude_args: '--allowedTools "Read,Write,Edit,Grep,Find,Glob,Tree,Bash,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(git log:*),Bash(git show:*),Bash(git blame:*),Bash(find . -name:*),Bash(grep -r:*),Bash(cat:*),Bash(head:*),Bash(tail:*),Bash(wc:*),Bash(ls:*)" --disallowedTools "Bash(rm -rf:*),Bash(sudo:*),Bash(chmod 777:*),Bash(git commit:*),Bash(git push:*)" --model claude-sonnet-4-5-20250929'
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Please review this pull request and provide feedback on:
+            - Code quality and best practices
+            - Potential bugs or issues
+            - Performance considerations
+            - Security concerns
+            - Test coverage
+
+            Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
+
+            Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
+
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://docs.claude.com/en/docs/claude-code/cli-reference for available options
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+
