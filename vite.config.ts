@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -22,6 +22,7 @@ export default defineConfig({
   ],
   build: {
     outDir: 'dist',
+    emptyOutDir: true,
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'src/popup/index.html'),
@@ -31,13 +32,21 @@ export default defineConfig({
       },
       output: {
         entryFileNames: (chunkInfo) => {
+          // Background and content scripts go to their own directories
           if (chunkInfo.name === 'background' || chunkInfo.name === 'content') {
-            return '[name]/index.js';
+            return '[name]/index.js'
           }
-          return 'assets/[name]-[hash].js';
+          // UI scripts go to assets
+          return 'assets/[name]-[hash].js'
         },
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash][extname]',
+        assetFileNames: (assetInfo) => {
+          // CSS files go to assets
+          if (assetInfo.name?.endsWith('.css')) {
+            return 'assets/[name]-[hash][extname]'
+          }
+          return 'assets/[name][extname]'
+        },
       },
     },
     sourcemap: process.env.NODE_ENV === 'development',
@@ -48,4 +57,4 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
-});
+})

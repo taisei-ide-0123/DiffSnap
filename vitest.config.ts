@@ -1,6 +1,6 @@
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
+import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
+import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [react()],
@@ -16,7 +16,11 @@ export default defineConfig({
         'dist/',
         '**/*.config.{js,ts}',
         '**/*.d.ts',
-        '**/index.ts',
+        // Exclude only entry point index files, not utility index.ts
+        'src/popup/main.tsx',
+        'src/settings/main.tsx',
+        'src/background/index.ts',
+        'src/content/index.ts',
       ],
     },
   },
@@ -25,4 +29,4 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
-});
+})
