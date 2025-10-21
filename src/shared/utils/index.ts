@@ -14,7 +14,9 @@ export const normalizeUrl = (url: string): string => {
     )
     parsed.search = sortedParams.toString()
     return parsed.toString()
-  } catch {
+  } catch (error) {
+    // Log invalid URL patterns for debugging
+    console.warn('Failed to normalize URL:', url, error)
     return url
   }
 }
