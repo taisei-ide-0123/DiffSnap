@@ -2,8 +2,14 @@
 
 /**
  * Normalize URL for comparison
+ *
+ * クエリパラメータをソートし、ハッシュを削除してURL比較を可能にします。
+ * 相対URL解決には`src/lib/url-utils.ts`の`normalizeUrl`を使用してください。
+ *
+ * @param url - 正規化するURL
+ * @returns 比較用に正規化されたURL
  */
-export const normalizeUrl = (url: string): string => {
+export const normalizeUrlForComparison = (url: string): string => {
   try {
     const parsed = new URL(url)
     // Remove hash and sort query parameters

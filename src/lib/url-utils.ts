@@ -8,38 +8,44 @@
  */
 
 /**
+ * デフォルトの重要パラメータ
+ */
+const DEFAULT_PARAMS = ['id', 'pid', 'product_id', 'sku', 'item_id'] as const
+
+/**
  * ドメイン別の重要パラメータマッピング
  *
  * 各ドメインで商品IDやコンテンツIDとして使用される
  * 重要なクエリパラメータを定義します。
  */
-const SIGNIFICANT_PARAMS: Record<string, string[]> = {
+const SIGNIFICANT_PARAMS: Record<string, readonly string[]> = {
   'amazon.com': ['dp', 'asin'],
   'ebay.com': ['item'],
   'youtube.com': ['v'],
   'twitter.com': ['status'],
   'x.com': ['status'],
-  default: ['id', 'pid', 'product_id', 'sku', 'item_id'],
+  default: DEFAULT_PARAMS,
 }
 
 /**
- * 相対URLを絶対URLに解決します
+ * 相対URLを絶対URLに正規化します
  *
- * この関数は画像検出時に相対パスを絶対URLに変換するために使用します。
- * URL比較用の正規化には`src/shared/utils/index.ts`の`normalizeUrl`を使用してください。
+ * 画像検出時に相対パスを絶対URLに変換するために使用します。
+ * クエリパラメータのソートや比較用の正規化には`src/shared/utils/index.ts`の
+ * `normalizeUrlForComparison`を使用してください。
  *
- * @param rawUrl - 解決するURL（相対または絶対）
+ * @param rawUrl - 正規化するURL（相対または絶対）
  * @param baseUrl - ベースURL（相対URL解決用）
- * @returns 解決された絶対URL。無効なURLの場合は空文字列を返す
+ * @returns 正規化された絶対URL。無効なURLの場合は空文字列を返す
  *
  * @example
- * resolveRelativeUrl('../image.jpg', 'https://example.com/page/view')
+ * normalizeUrl('../image.jpg', 'https://example.com/page/view')
  * // => 'https://example.com/image.jpg'
  *
- * resolveRelativeUrl('data:image/png;base64,...', 'https://example.com/')
+ * normalizeUrl('data:image/png;base64,...', 'https://example.com/')
  * // => 'data:image/png;base64,...' (data URLはそのまま)
  */
-export const resolveRelativeUrl = (rawUrl: string, baseUrl: string): string => {
+export const normalizeUrl = (rawUrl: string, baseUrl: string): string => {
   // 空文字列の場合は早期リターン
   if (!rawUrl || !baseUrl) {
     return ''
@@ -59,8 +65,10 @@ export const resolveRelativeUrl = (rawUrl: string, baseUrl: string): string => {
 
     return url.href
   } catch (error) {
-    // 開発時のデバッグ用にエラーログを出力
-    console.debug('[resolveRelativeUrl] Invalid URL:', rawUrl, error)
+    // 開発時のみエラーログを出力
+    if (import.meta.env.DEV) {
+      console.debug('[normalizeUrl] Invalid URL:', rawUrl, error)
+    }
     return ''
   }
 }
@@ -82,13 +90,7 @@ export const extractSignificantParams = (
   hostname: string
 ): URLSearchParams => {
   // ドメインに対応する重要パラメータリストを取得
-  let significantKeys: string[] = SIGNIFICANT_PARAMS.default ?? [
-    'id',
-    'pid',
-    'product_id',
-    'sku',
-    'item_id',
-  ]
+  let significantKeys: readonly string[] = SIGNIFICANT_PARAMS.default ?? DEFAULT_PARAMS
 
   // 完全一致またはサブドメイン一致をチェック
   for (const [domain, keys] of Object.entries(SIGNIFICANT_PARAMS)) {
@@ -179,8 +181,10 @@ export const makeRecordId = async (url: string): Promise<string> => {
 
     return `${origin}${pathname}:${queryHash}`
   } catch (error) {
-    // 開発時のデバッグ用にエラーログを出力
-    console.debug('[makeRecordId] Invalid URL:', url, error)
+    // 開発時のみエラーログを出力
+    if (import.meta.env.DEV) {
+      console.debug('[makeRecordId] Invalid URL:', url, error)
+    }
     return ''
   }
 }
