@@ -91,7 +91,8 @@ export const detectImgElements = (baseUrl: string): ImageCandidate[] => {
     if (!rawUrl || rawUrl.trim() === '') continue
 
     const url = normalizeUrl(rawUrl, baseUrl)
-    if (!url) continue
+    // 空のURLまたはbaseURLと同じ場合はスキップ（<img src="">対策）
+    if (!url || url === baseUrl) continue
 
     candidates.push({
       url,
@@ -193,7 +194,7 @@ export const extractSrcset = (srcset: string, baseUrl: string): string => {
     if (parts.length === 0) continue
 
     const rawUrl = parts[0]
-    const descriptor = parts[1] || '1x' // デフォルトは1x
+    const descriptor = parts[1] ?? '1x' // デフォルトは1x
 
     if (!rawUrl) continue
 
@@ -356,7 +357,7 @@ export const detectCanvasElements = (_baseUrl: string): ImageCandidate[] => {
       // CORS汚染がある場合はエラーが発生
       const dataUrl = canvas.toDataURL('image/png')
 
-      if (!dataUrl || !dataUrl.startsWith('data:')) continue
+      if (!dataUrl?.startsWith('data:')) continue
 
       candidates.push({
         url: dataUrl,
@@ -431,7 +432,8 @@ export const detectImages = (): ImageCandidate[] => {
       uniqueMap.set(key, candidate)
     } else {
       // 既存の候補とマージ（より詳細な情報を優先）
-      const existing = uniqueMap.get(key)!
+      const existing = uniqueMap.get(key)
+      if (!existing) continue // 念のためガード追加（型安全性）
 
       // width/heightが未設定なら更新
       if (!existing.width && candidate.width) {
