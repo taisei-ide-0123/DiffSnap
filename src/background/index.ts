@@ -44,7 +44,7 @@ chrome.runtime.onMessage.addListener(
     // 未知のメッセージタイプ
     console.warn('Unknown message type:', message)
     sendResponse({ status: 'ERROR', error: 'Unknown message type' })
-    return false // 非同期チャネルを開かない
+    return true // sendResponseを使用するため非同期チャネルを有効化
   }
 )
 

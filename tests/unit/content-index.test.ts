@@ -189,7 +189,7 @@ describe('Content Script (content/index.ts)', () => {
       const handler = (msg: any, _sender: any, sendResp: any) => {
         if (msg.type === 'START_SCROLL') {
           sendResp({ status: 'NOT_IMPLEMENTED' })
-          return false
+          return true
         }
         return false
       }
@@ -197,7 +197,7 @@ describe('Content Script (content/index.ts)', () => {
       const result = handler(message, {}, sendResponse)
 
       expect(sendResponse).toHaveBeenCalledWith({ status: 'NOT_IMPLEMENTED' })
-      expect(result).toBe(false)
+      expect(result).toBe(true)
     })
   })
 })

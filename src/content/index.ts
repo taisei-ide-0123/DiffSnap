@@ -86,10 +86,10 @@ chrome.runtime.onMessage.addListener(
     if (message.type === 'START_SCROLL') {
       // Phase 2で実装
       sendResponse({ status: 'NOT_IMPLEMENTED' })
-      return true // sendResponseを有効化
+      return true // sendResponseを使用するため非同期チャネルを有効化
     }
 
-    // 未知のメッセージタイプ
+    // 未知のメッセージタイプ（現在はSTART_SCROLLのみ定義されているため、到達しない）
     return false
   }
 )
