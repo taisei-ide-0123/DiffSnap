@@ -96,8 +96,8 @@ export const detectImgElements = (baseUrl: string): ImageCandidate[] => {
     candidates.push({
       url,
       source: 'img',
-      width: img.naturalWidth || img.width || undefined,
-      height: img.naturalHeight || img.height || undefined,
+      width: img.naturalWidth > 0 ? img.naturalWidth : (img.width > 0 ? img.width : undefined),
+      height: img.naturalHeight > 0 ? img.naturalHeight : (img.height > 0 ? img.height : undefined),
       alt: img.alt && img.alt.trim() !== '' ? img.alt : extractContext(img),
     })
   }
@@ -129,9 +129,9 @@ export const detectPictureElements = (baseUrl: string): ImageCandidate[] => {
     candidates.push({
       url,
       source: 'picture',
-      width: img.naturalWidth || img.width || undefined,
-      height: img.naturalHeight || img.height || undefined,
-      alt: img.alt || extractContext(picture),
+      width: img.naturalWidth > 0 ? img.naturalWidth : (img.width > 0 ? img.width : undefined),
+      height: img.naturalHeight > 0 ? img.naturalHeight : (img.height > 0 ? img.height : undefined),
+      alt: (img.alt && img.alt.trim() !== '') ? img.alt : extractContext(picture),
     })
 
     // source要素も走査
@@ -148,7 +148,7 @@ export const detectPictureElements = (baseUrl: string): ImageCandidate[] => {
           source: 'picture',
           width: undefined,
           height: undefined,
-          alt: img.alt || extractContext(picture),
+          alt: (img.alt && img.alt.trim() !== '') ? img.alt : extractContext(picture),
         })
       }
     }
@@ -310,8 +310,10 @@ export const detectCSSBackgrounds = (baseUrl: string): ImageCandidate[] => {
         candidates.push({
           url,
           source: 'css-bg',
-          width: el.clientWidth || undefined,
-          height: el.clientHeight || undefined,
+          // 注意: 背景画像の実寸は取得不可能なため、要素のサイズを記録
+          // clientWidth/Heightは要素の表示サイズであり、画像の実寸ではない
+          width: el.clientWidth > 0 ? el.clientWidth : undefined,
+          height: el.clientHeight > 0 ? el.clientHeight : undefined,
           alt: extractContext(el),
         })
       }
@@ -336,6 +338,20 @@ export const detectCanvasElements = (_baseUrl: string): ImageCandidate[] => {
 
   for (const canvas of canvases) {
     try {
+      // canvas内容の有効性チェック
+      const ctx = canvas.getContext('2d')
+      if (!ctx) continue
+
+      // 空canvas（未描画）のチェック
+      // 1x1ピクセルをサンプリングして全ピクセルが透明または白/黒ならスキップ
+      if (canvas.width > 0 && canvas.height > 0) {
+        const imageData = ctx.getImageData(0, 0, 1, 1)
+        const isEmpty = imageData.data.every((value, index) =>
+          index % 4 === 3 ? value === 0 : value === 0 || value === 255
+        )
+        if (isEmpty) continue
+      }
+
       // toDataURL()でcanvasの内容をdata URLに変換
       // CORS汚染がある場合はエラーが発生
       const dataUrl = canvas.toDataURL('image/png')
@@ -390,9 +406,9 @@ export const detectImages = (): ImageCandidate[] => {
     srcsetCandidates.push({
       url,
       source: 'srcset',
-      width: img.naturalWidth || img.width || undefined,
-      height: img.naturalHeight || img.height || undefined,
-      alt: img.alt || extractContext(img),
+      width: img.naturalWidth > 0 ? img.naturalWidth : (img.width > 0 ? img.width : undefined),
+      height: img.naturalHeight > 0 ? img.naturalHeight : (img.height > 0 ? img.height : undefined),
+      alt: (img.alt && img.alt.trim() !== '') ? img.alt : extractContext(img),
     })
   }
 
