@@ -39,10 +39,16 @@ export interface ScrollTimeoutMessage {
   type: 'SCROLL_TIMEOUT'
 }
 
+export interface DetectionErrorMessage {
+  type: 'DETECTION_ERROR'
+  error: string
+}
+
 export type ContentToBackgroundMessage =
   | ImagesDetectedMessage
   | ScrollCompleteMessage
   | ScrollTimeoutMessage
+  | DetectionErrorMessage
 
 // Background → Popup
 export interface StateUpdateMessage {

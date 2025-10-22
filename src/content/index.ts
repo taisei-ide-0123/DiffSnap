@@ -47,6 +47,19 @@ const runDetection = () => {
     })
   } catch (error) {
     log('Detection error:', error)
+
+    // Backgroundにエラー通知
+    chrome.runtime.sendMessage(
+      {
+        type: 'DETECTION_ERROR',
+        error: error instanceof Error ? error.message : String(error),
+      },
+      () => {
+        if (chrome.runtime.lastError) {
+          log('Failed to send error notification:', chrome.runtime.lastError.message)
+        }
+      }
+    )
   }
 }
 
@@ -73,9 +86,10 @@ chrome.runtime.onMessage.addListener(
     if (message.type === 'START_SCROLL') {
       // Phase 2で実装
       sendResponse({ status: 'NOT_IMPLEMENTED' })
-      return false
+      return true // sendResponseを有効化
     }
 
+    // 未知のメッセージタイプ
     return false
   }
 )

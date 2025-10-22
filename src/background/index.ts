@@ -18,17 +18,33 @@ chrome.runtime.onMessage.addListener(
 
     if (message.type === 'IMAGES_DETECTED') {
       // 簡易ハンドラ（Issue #8で完全実装予定）
+      // 候補配列の検証
+      if (!message.candidates || !Array.isArray(message.candidates)) {
+        console.error('Invalid IMAGES_DETECTED message:', message)
+        sendResponse({ status: 'ERROR', error: 'Invalid candidates field' })
+        return true
+      }
+
       console.log(
         'Received IMAGES_DETECTED from tab:',
         sender.tab?.id,
         'count:',
-        message.candidates?.length || 0
+        message.candidates.length
       )
-      sendResponse({ status: 'OK', received: message.candidates?.length || 0 })
+      sendResponse({ status: 'OK', received: message.candidates.length })
       return true
     }
 
-    return true // Keep message channel open for async responses
+    if (message.type === 'DETECTION_ERROR') {
+      console.error('Detection error from tab:', sender.tab?.id, 'error:', message.error)
+      sendResponse({ status: 'OK' })
+      return true
+    }
+
+    // 未知のメッセージタイプ
+    console.warn('Unknown message type:', message)
+    sendResponse({ status: 'ERROR', error: 'Unknown message type' })
+    return false // 非同期チャネルを開かない
   }
 )
 
