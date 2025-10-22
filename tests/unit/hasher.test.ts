@@ -2,7 +2,7 @@
  * SHA-256 Hash Utilities Test Suite
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { sha256, hashBlob } from '../../src/lib/hasher'
 
 describe('hasher', () => {
@@ -191,6 +191,95 @@ describe('hasher', () => {
       expect(hash1).not.toBe(hash2)
       expect(hash2).not.toBe(hash3)
       expect(hash1).not.toBe(hash3)
+    })
+  })
+
+  describe('Error handling', () => {
+    it('crypto.subtle.digestエラー時に適切なエラーメッセージ', async () => {
+      // crypto.subtle.digestをモック化してエラーを発生させる
+      const originalDigest = crypto.subtle.digest
+      const mockDigest = vi.fn().mockRejectedValue(new Error('Digest operation failed'))
+
+      crypto.subtle.digest = mockDigest
+
+      await expect(sha256('test')).rejects.toThrow('Failed to calculate SHA-256')
+      await expect(sha256('test')).rejects.toThrow('Digest operation failed')
+
+      // 元に戻す
+      crypto.subtle.digest = originalDigest
+    })
+
+    it('無効なBlob入力でエラースロー', async () => {
+      // nullやundefinedのBlob
+      const invalidBlob = null as unknown as Blob
+
+      await expect(hashBlob(invalidBlob)).rejects.toThrow('Failed to hash blob')
+    })
+
+    it('FileReaderエラー時にリソース解放とエラーメッセージ', async () => {
+      // FileReaderのエラーをシミュレート
+      const originalFileReader = global.FileReader
+      const abortSpy = vi.fn()
+
+      class MockFileReader {
+        result: ArrayBuffer | null = null
+        error: DOMException | null = new DOMException('Mock read error')
+
+        readAsArrayBuffer() {
+          // エラーイベントを非同期で発火
+          setTimeout(() => {
+            if (this.onerror) {
+              this.onerror(new Event('error') as ProgressEvent<FileReader>)
+            }
+          }, 0)
+        }
+
+        abort = abortSpy
+        onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+      }
+
+      // blob.arrayBufferが存在しない環境をシミュレート
+      const blob = new Blob(['test'])
+      // @ts-expect-error Testing fallback path
+      blob.arrayBuffer = undefined
+
+      // @ts-expect-error Mock implementation
+      global.FileReader = MockFileReader
+
+      await expect(hashBlob(blob)).rejects.toThrow('FileReader error')
+      await expect(hashBlob(blob)).rejects.toThrow('Mock read error')
+
+      // 元に戻す
+      global.FileReader = originalFileReader
+    })
+
+    it('hashBlobでBlob読み込み中のエラー処理', async () => {
+      // モックFileReaderで即座にエラー発生
+      const originalFileReader = global.FileReader
+
+      class ErrorFileReader {
+        error = new DOMException('Read failed')
+        abort = vi.fn()
+        readAsArrayBuffer() {
+          if (this.onerror) {
+            this.onerror(new Event('error') as ProgressEvent<FileReader>)
+          }
+        }
+        onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+      }
+
+      const blob = new Blob(['test data'])
+      // @ts-expect-error Testing fallback
+      blob.arrayBuffer = undefined
+
+      // @ts-expect-error Mock
+      global.FileReader = ErrorFileReader
+
+      await expect(hashBlob(blob)).rejects.toThrow('Failed to hash blob')
+
+      global.FileReader = originalFileReader
     })
   })
 

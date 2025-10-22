@@ -29,8 +29,14 @@ export const normalizeUrlForComparison = (url: string): string => {
 
 /**
  * Generate SHA-256 hash from ArrayBuffer
+ *
+ * @deprecated Use sha256() from @/lib/hasher instead for better error handling and flexibility
+ * @param data - ArrayBuffer to hash
+ * @returns 64-character hexadecimal hash string
  */
 export const generateHash = async (data: ArrayBuffer): Promise<string> => {
+  // 互換性のため既存のロジックを維持
+  // 新規実装ではsrc/lib/hasher.tsのsha256()を使用してください
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
   const hashArray = Array.from(new Uint8Array(hashBuffer))
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
