@@ -1,22 +1,22 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeUrl, generateHash } from './index'
+import { normalizeUrlForComparison, generateHash } from './index'
 
-describe('normalizeUrl', () => {
+describe('normalizeUrlForComparison', () => {
   it('should normalize URL by removing hash', () => {
     const url = 'https://example.com/page#section'
-    const normalized = normalizeUrl(url)
+    const normalized = normalizeUrlForComparison(url)
     expect(normalized).toBe('https://example.com/page')
   })
 
   it('should sort query parameters', () => {
     const url = 'https://example.com/page?b=2&a=1'
-    const normalized = normalizeUrl(url)
+    const normalized = normalizeUrlForComparison(url)
     expect(normalized).toBe('https://example.com/page?a=1&b=2')
   })
 
   it('should handle invalid URLs gracefully', () => {
     const invalidUrl = 'not-a-url'
-    const normalized = normalizeUrl(invalidUrl)
+    const normalized = normalizeUrlForComparison(invalidUrl)
     expect(normalized).toBe(invalidUrl)
   })
 })

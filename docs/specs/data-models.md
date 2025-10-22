@@ -22,7 +22,7 @@ DiffRecord {
   url: string                   // 完全URL（クエリ含む）
   origin: string                // https://example.com
   pathname: string              // /products/item
-  queryHash: string             // SHA-256(sortedQueryString)の16桁
+  queryHash: string             // SHA-256(sortedQueryString)の32桁（128ビット）
   domain: string                // example.com
   lastScanAt: number            // Date.now() タイムスタンプ
   images: ImageSnapshot[]       // 検出済み画像の配列
