@@ -23,3 +23,87 @@ export interface DetectionResult {
   timestamp: number
   url: string
 }
+
+// メッセージ型定義
+// Content → Background
+export interface ImagesDetectedMessage {
+  type: 'IMAGES_DETECTED'
+  candidates: ImageCandidate[]
+}
+
+export interface ScrollCompleteMessage {
+  type: 'SCROLL_COMPLETE'
+}
+
+export interface ScrollTimeoutMessage {
+  type: 'SCROLL_TIMEOUT'
+}
+
+export type ContentToBackgroundMessage =
+  | ImagesDetectedMessage
+  | ScrollCompleteMessage
+  | ScrollTimeoutMessage
+
+// Background → Popup
+export interface StateUpdateMessage {
+  type: 'STATE_UPDATE'
+  state: RunState
+}
+
+export interface DiffResultMessage {
+  type: 'DIFF_RESULT'
+  new: ImageSnapshot[]
+  existing: ImageSnapshot[]
+  isFirstVisit: boolean
+}
+
+export interface ZipReadyMessage {
+  type: 'ZIP_READY'
+  downloadId: number
+}
+
+export type BackgroundToPopupMessage = StateUpdateMessage | DiffResultMessage | ZipReadyMessage
+
+// Popup → Background
+export interface StartCollectionMessage {
+  type: 'START_COLLECTION'
+  tabId: number
+  options: CollectionOptions
+}
+
+export interface RetryFailedMessage {
+  type: 'RETRY_FAILED'
+  urls: string[]
+}
+
+export interface CheckDiffMessage {
+  type: 'CHECK_DIFF'
+  url: string
+}
+
+export type PopupToBackgroundMessage =
+  | StartCollectionMessage
+  | RetryFailedMessage
+  | CheckDiffMessage
+
+// コレクションオプション
+export interface CollectionOptions {
+  enableScroll: boolean // 自動スクロール有効化
+  maxScrollDepth: number // デフォルト20画面
+  scrollTimeout: number // デフォルト15000ms
+}
+
+// 実行状態（仮定義）
+export interface RunState {
+  status: 'idle' | 'detecting' | 'collecting' | 'completed' | 'error'
+  progress?: number
+  error?: string
+}
+
+// 画像スナップショット（差分台帳用、仮定義）
+export interface ImageSnapshot {
+  hash: string
+  url: string
+  firstSeen: number
+  lastSeen: number
+}
