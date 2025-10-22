@@ -9,9 +9,9 @@
  */
 
 import { detectImages } from './detector'
-import type { ImagesDetectedMessage } from '../shared/types'
+import type { ImagesDetectedMessage, BackgroundToContentMessage } from '../shared/types'
 
-const DEBUG = true
+const DEBUG = import.meta.env.DEV
 
 const log = (...args: unknown[]) => {
   if (DEBUG) {
@@ -65,17 +65,19 @@ if (document.readyState === 'loading') {
  * Background/Popupからのメッセージハンドラ
  * Phase 2でスクロール制御などを追加予定
  */
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  log('Received message:', message)
+chrome.runtime.onMessage.addListener(
+  (message: BackgroundToContentMessage, _sender, sendResponse) => {
+    log('Received message:', message)
 
-  // 将来の拡張用（スクロール制御など）
-  if (message.type === 'START_SCROLL') {
-    // Phase 2で実装
-    sendResponse({ status: 'NOT_IMPLEMENTED' })
+    // 将来の拡張用（スクロール制御など）
+    if (message.type === 'START_SCROLL') {
+      // Phase 2で実装
+      sendResponse({ status: 'NOT_IMPLEMENTED' })
+      return false
+    }
+
     return false
   }
-
-  return false
-})
+)
 
 log('Content script loaded')

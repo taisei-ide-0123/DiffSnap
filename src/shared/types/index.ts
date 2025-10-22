@@ -100,10 +100,21 @@ export interface RunState {
   error?: string
 }
 
-// 画像スナップショット（差分台帳用、仮定義）
+// 画像スナップショット（差分台帳用）
+// data-models.md:31-39 準拠
 export interface ImageSnapshot {
-  hash: string
-  url: string
-  firstSeen: number
-  lastSeen: number
+  hash: string // SHA-256（Blobコンテンツ）
+  url: string // 取得に使用したURL（クエリ保持）
+  width: number // 画像の自然幅
+  height: number // 画像の自然高
+  alt?: string // altテキスト
+  context?: string // 周辺テキスト（50文字）
+  firstSeenAt: number // 初回検出時刻
 }
+
+// Background → Content メッセージ型（Phase 2で拡張）
+export interface StartScrollMessage {
+  type: 'START_SCROLL'
+}
+
+export type BackgroundToContentMessage = StartScrollMessage
