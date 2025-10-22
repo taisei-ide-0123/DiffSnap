@@ -97,8 +97,8 @@ export const detectImgElements = (baseUrl: string): ImageCandidate[] => {
     candidates.push({
       url,
       source: 'img',
-      width: img.naturalWidth > 0 ? img.naturalWidth : (img.width > 0 ? img.width : undefined),
-      height: img.naturalHeight > 0 ? img.naturalHeight : (img.height > 0 ? img.height : undefined),
+      width: img.naturalWidth > 0 ? img.naturalWidth : img.width > 0 ? img.width : undefined,
+      height: img.naturalHeight > 0 ? img.naturalHeight : img.height > 0 ? img.height : undefined,
       alt: img.alt && img.alt.trim() !== '' ? img.alt : extractContext(img),
     })
   }
@@ -130,9 +130,9 @@ export const detectPictureElements = (baseUrl: string): ImageCandidate[] => {
     candidates.push({
       url,
       source: 'picture',
-      width: img.naturalWidth > 0 ? img.naturalWidth : (img.width > 0 ? img.width : undefined),
-      height: img.naturalHeight > 0 ? img.naturalHeight : (img.height > 0 ? img.height : undefined),
-      alt: (img.alt && img.alt.trim() !== '') ? img.alt : extractContext(picture),
+      width: img.naturalWidth > 0 ? img.naturalWidth : img.width > 0 ? img.width : undefined,
+      height: img.naturalHeight > 0 ? img.naturalHeight : img.height > 0 ? img.height : undefined,
+      alt: img.alt && img.alt.trim() !== '' ? img.alt : extractContext(picture),
     })
 
     // source要素も走査
@@ -149,7 +149,7 @@ export const detectPictureElements = (baseUrl: string): ImageCandidate[] => {
           source: 'picture',
           width: undefined,
           height: undefined,
-          alt: (img.alt && img.alt.trim() !== '') ? img.alt : extractContext(picture),
+          alt: img.alt && img.alt.trim() !== '' ? img.alt : extractContext(picture),
         })
       }
     }
@@ -404,12 +404,23 @@ export const detectImages = (): ImageCandidate[] => {
     const url = extractSrcset(srcset, baseUrl)
     if (!url) continue
 
+    const imgElement = img as HTMLImageElement
     srcsetCandidates.push({
       url,
       source: 'srcset',
-      width: img.naturalWidth > 0 ? img.naturalWidth : (img.width > 0 ? img.width : undefined),
-      height: img.naturalHeight > 0 ? img.naturalHeight : (img.height > 0 ? img.height : undefined),
-      alt: (img.alt && img.alt.trim() !== '') ? img.alt : extractContext(img),
+      width:
+        imgElement.naturalWidth > 0
+          ? imgElement.naturalWidth
+          : imgElement.width > 0
+            ? imgElement.width
+            : undefined,
+      height:
+        imgElement.naturalHeight > 0
+          ? imgElement.naturalHeight
+          : imgElement.height > 0
+            ? imgElement.height
+            : undefined,
+      alt: imgElement.alt && imgElement.alt.trim() !== '' ? imgElement.alt : extractContext(img),
     })
   }
 
