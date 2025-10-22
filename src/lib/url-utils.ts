@@ -23,20 +23,23 @@ const SIGNIFICANT_PARAMS: Record<string, string[]> = {
 }
 
 /**
- * 相対URLを絶対URLに正規化します
+ * 相対URLを絶対URLに解決します
  *
- * @param rawUrl - 正規化するURL（相対または絶対）
+ * この関数は画像検出時に相対パスを絶対URLに変換するために使用します。
+ * URL比較用の正規化には`src/shared/utils/index.ts`の`normalizeUrl`を使用してください。
+ *
+ * @param rawUrl - 解決するURL（相対または絶対）
  * @param baseUrl - ベースURL（相対URL解決用）
- * @returns 正規化された絶対URL。無効なURLの場合は空文字列を返す
+ * @returns 解決された絶対URL。無効なURLの場合は空文字列を返す
  *
  * @example
- * normalizeUrl('../image.jpg', 'https://example.com/page/view')
+ * resolveRelativeUrl('../image.jpg', 'https://example.com/page/view')
  * // => 'https://example.com/image.jpg'
  *
- * normalizeUrl('data:image/png;base64,...', 'https://example.com/')
+ * resolveRelativeUrl('data:image/png;base64,...', 'https://example.com/')
  * // => 'data:image/png;base64,...' (data URLはそのまま)
  */
-export const normalizeUrl = (rawUrl: string, baseUrl: string): string => {
+export const resolveRelativeUrl = (rawUrl: string, baseUrl: string): string => {
   // 空文字列の場合は早期リターン
   if (!rawUrl || !baseUrl) {
     return ''
@@ -55,8 +58,9 @@ export const normalizeUrl = (rawUrl: string, baseUrl: string): string => {
     url.hash = ''
 
     return url.href
-  } catch {
-    // 無効なURLの場合は空文字列を返す
+  } catch (error) {
+    // 開発時のデバッグ用にエラーログを出力
+    console.debug('[resolveRelativeUrl] Invalid URL:', rawUrl, error)
     return ''
   }
 }
@@ -78,7 +82,13 @@ export const extractSignificantParams = (
   hostname: string
 ): URLSearchParams => {
   // ドメインに対応する重要パラメータリストを取得
-  let significantKeys: string[] = SIGNIFICANT_PARAMS.default!
+  let significantKeys: string[] = SIGNIFICANT_PARAMS.default ?? [
+    'id',
+    'pid',
+    'product_id',
+    'sku',
+    'item_id',
+  ]
 
   // 完全一致またはサブドメイン一致をチェック
   for (const [domain, keys] of Object.entries(SIGNIFICANT_PARAMS)) {
@@ -168,8 +178,9 @@ export const makeRecordId = async (url: string): Promise<string> => {
     const queryHash = await hashQueryString(normalizedQuery)
 
     return `${origin}${pathname}:${queryHash}`
-  } catch {
-    // 無効なURLの場合は空文字列を返す
+  } catch (error) {
+    // 開発時のデバッグ用にエラーログを出力
+    console.debug('[makeRecordId] Invalid URL:', url, error)
     return ''
   }
 }

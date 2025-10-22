@@ -1,55 +1,60 @@
 import { describe, it, expect } from 'vitest'
 import {
-  normalizeUrl,
+  resolveRelativeUrl,
   extractSignificantParams,
   hashQueryString,
   makeRecordId
 } from '../../src/lib/url-utils'
 
-describe('normalizeUrl', () => {
+describe('resolveRelativeUrl', () => {
   const baseUrl = 'https://example.com/page/view'
 
   it('相対URLを絶対URLに変換する', () => {
-    expect(normalizeUrl('../image.jpg', baseUrl)).toBe('https://example.com/image.jpg')
-    expect(normalizeUrl('./image.jpg', baseUrl)).toBe('https://example.com/page/image.jpg')
-    expect(normalizeUrl('image.jpg', baseUrl)).toBe('https://example.com/page/image.jpg')
-    expect(normalizeUrl('/absolute/image.jpg', baseUrl)).toBe(
+    expect(resolveRelativeUrl('../image.jpg', baseUrl)).toBe('https://example.com/image.jpg')
+    expect(resolveRelativeUrl('./image.jpg', baseUrl)).toBe(
+      'https://example.com/page/image.jpg'
+    )
+    expect(resolveRelativeUrl('image.jpg', baseUrl)).toBe(
+      'https://example.com/page/image.jpg'
+    )
+    expect(resolveRelativeUrl('/absolute/image.jpg', baseUrl)).toBe(
       'https://example.com/absolute/image.jpg'
     )
   })
 
   it('絶対URLをそのまま返す', () => {
     const absoluteUrl = 'https://other.com/image.jpg'
-    expect(normalizeUrl(absoluteUrl, baseUrl)).toBe(absoluteUrl)
+    expect(resolveRelativeUrl(absoluteUrl, baseUrl)).toBe(absoluteUrl)
   })
 
   it('data URLをそのまま返す', () => {
-    const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
-    expect(normalizeUrl(dataUrl, baseUrl)).toBe(dataUrl)
+    const dataUrl =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    expect(resolveRelativeUrl(dataUrl, baseUrl)).toBe(dataUrl)
   })
 
   it('クエリパラメータを保持する', () => {
-    expect(normalizeUrl('image.jpg?v=2', baseUrl)).toBe(
+    expect(resolveRelativeUrl('image.jpg?v=2', baseUrl)).toBe(
       'https://example.com/page/image.jpg?v=2'
     )
-    expect(normalizeUrl('image.jpg?v=2&quality=high', baseUrl)).toBe(
+    expect(resolveRelativeUrl('image.jpg?v=2&quality=high', baseUrl)).toBe(
       'https://example.com/page/image.jpg?v=2&quality=high'
     )
   })
 
   it('フラグメント（#）を削除する', () => {
-    expect(normalizeUrl('image.jpg#section', baseUrl)).toBe(
+    expect(resolveRelativeUrl('image.jpg#section', baseUrl)).toBe(
       'https://example.com/page/image.jpg'
     )
-    expect(normalizeUrl('image.jpg?v=2#section', baseUrl)).toBe(
+    expect(resolveRelativeUrl('image.jpg?v=2#section', baseUrl)).toBe(
       'https://example.com/page/image.jpg?v=2'
     )
   })
 
   it('無効なURLの場合は空文字列を返す', () => {
-    expect(normalizeUrl('', baseUrl)).toBe('')
-    expect(normalizeUrl('not-a-url', '')).toBe('')
-    expect(normalizeUrl('http://[invalid', baseUrl)).toBe('')
+    expect(resolveRelativeUrl('', baseUrl)).toBe('')
+    expect(resolveRelativeUrl('not-a-url', '')).toBe('')
+    expect(resolveRelativeUrl('http://[invalid', baseUrl)).toBe('')
   })
 })
 
