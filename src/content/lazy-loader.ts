@@ -11,25 +11,10 @@
  * - 終了後: トップへ自動復帰
  */
 
-/**
- * スクロール状態
- */
-export type ScrollState =
-  | 'SCROLLING' // スクロール中
-  | 'BOTTOM_REACHED' // 最下部到達（成功）
-  | 'TIMEOUT_REACHED' // タイムアウト到達
-  | 'MAX_DEPTH_REACHED' // 最大深度到達（ユーザー選択待ち）
-  | 'CANCELLED' // ユーザーによるキャンセル
+import type { ScrollState, ScrollResult } from '../shared/types'
 
-/**
- * スクロール結果
- */
-export interface ScrollResult {
-  state: ScrollState
-  scrollCount: number
-  finalHeight: number
-  elapsed: number
-}
+// Re-export ScrollState for test files
+export type { ScrollState }
 
 /**
  * スクロールオプション

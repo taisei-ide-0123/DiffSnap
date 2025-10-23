@@ -233,6 +233,10 @@ export const showScrollProgress = (scrollCount: number, maxDepth: number): HTMLD
   `
   )
 
+  // Note: z-indexは最大値-1に設定
+  // オーバーレイダイアログ(2147483647)より1小さい値を使用することで、
+  // 万が一両方が同時に表示されてもダイアログが優先される設計
+
   progress.textContent = `スクロール中... ${scrollCount}/${maxDepth}`
 
   document.body.appendChild(progress)
