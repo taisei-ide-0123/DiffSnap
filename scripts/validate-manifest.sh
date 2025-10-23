@@ -48,7 +48,8 @@ validate_field() {
   local description="$2"
 
   if check_jq; then
-    local value=$(jq -r "$field" "$MANIFEST_PATH" 2>/dev/null)
+    local value
+    value=$(jq -r "$field" "$MANIFEST_PATH" 2>/dev/null)
     if [ "$value" == "null" ] || [ -z "$value" ]; then
       echo -e "${RED}❌ Missing required field: $description ($field)${NC}"
       return 1
@@ -65,12 +66,14 @@ validate_array() {
   local description="$2"
 
   if check_jq; then
-    local value=$(jq -r "$field | type" "$MANIFEST_PATH" 2>/dev/null)
+    local value
+    value=$(jq -r "$field | type" "$MANIFEST_PATH" 2>/dev/null)
     if [ "$value" != "array" ]; then
       echo -e "${RED}❌ $description should be an array ($field)${NC}"
       return 1
     else
-      local length=$(jq -r "$field | length" "$MANIFEST_PATH" 2>/dev/null)
+      local length
+      length=$(jq -r "$field | length" "$MANIFEST_PATH" 2>/dev/null)
       echo -e "${GREEN}✅ $description: array with $length items${NC}"
       return 0
     fi

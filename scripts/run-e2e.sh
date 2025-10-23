@@ -116,7 +116,7 @@ fi
 echo ""
 
 # Run tests
-if eval $TEST_CMD; then
+if eval "$TEST_CMD"; then
   echo ""
   echo -e "${GREEN}✅ E2E tests passed!${NC}"
   exit 0

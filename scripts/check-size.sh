@@ -47,8 +47,10 @@ check_size() {
     return 0
   fi
 
-  local size=$(get_size_kb "$file_path")
-  local size_mb=$(echo "scale=2; $size/1024" | bc)
+  local size
+  size=$(get_size_kb "$file_path")
+  local size_mb
+  size_mb=$(echo "scale=2; $size/1024" | bc)
 
   if [ "$size" -gt "$threshold" ]; then
     echo -e "${RED}❌ $name: ${size}KB (${size_mb}MB) - exceeds ${threshold}KB threshold${NC}"
@@ -71,6 +73,7 @@ check_size "dist/settings/index.js" "$MAX_SETTINGS_SIZE" "Settings Script" || ha
 echo ""
 echo "📦 Checking total extension size..."
 total_size=$(du -sk dist | cut -f1)
+total_size_mb=""
 total_size_mb=$(echo "scale=2; $total_size/1024" | bc)
 
 if [ "$total_size" -gt "$MAX_TOTAL_SIZE" ]; then
@@ -83,7 +86,8 @@ fi
 # List largest files
 echo ""
 echo "📊 Top 10 largest files:"
-find dist -type f -exec du -k {} \; | sort -rn | head -10 | while read size file; do
+find dist -type f -exec du -k {} \; | sort -rn | head -10 | while read -r size file; do
+  size_mb=""
   size_mb=$(echo "scale=2; $size/1024" | bc)
   echo "  ${size}KB (${size_mb}MB) - $file"
 done
