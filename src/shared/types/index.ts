@@ -18,6 +18,9 @@ export type ImageSource =
   | 'video'
   | 'iframe'
 
+// スクロール関連の型定義
+export type UserChoice = 'continue' | 'stop' | 'cancel'
+
 export interface DetectionResult {
   candidates: ImageCandidate[]
   timestamp: number

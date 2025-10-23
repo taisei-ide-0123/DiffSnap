@@ -71,6 +71,57 @@ const scrollToTop = (): void => {
 }
 
 /**
+ * スクロール状態を評価する
+ *
+ * 優先度順に判定を行い、新しい状態とループ継続判定を返します。
+ *
+ * @param params - 判定に必要なパラメータ
+ * @returns 新しい状態とループを抜けるべきかの判定
+ */
+const evaluateScrollState = (params: {
+  currentHeight: number
+  previousHeight: number
+  noChangeCount: number
+  scrollCount: number
+  maxDepth: number
+  elapsed: number
+  timeout: number
+}): { newState: ScrollState; shouldBreak: boolean; newNoChangeCount: number } => {
+  const { currentHeight, previousHeight, noChangeCount, scrollCount, maxDepth, elapsed, timeout } =
+    params
+
+  // a. タイムアウト判定（最優先）
+  if (elapsed > timeout) {
+    return { newState: 'TIMEOUT_REACHED', shouldBreak: true, newNoChangeCount: noChangeCount }
+  }
+
+  // b. 最下部到達判定
+  if (currentHeight === previousHeight) {
+    const updatedNoChangeCount = noChangeCount + 1
+    if (updatedNoChangeCount >= 3) {
+      return { newState: 'BOTTOM_REACHED', shouldBreak: true, newNoChangeCount: updatedNoChangeCount }
+    }
+    return { newState: 'SCROLLING', shouldBreak: false, newNoChangeCount: updatedNoChangeCount }
+  }
+
+  // 高さが変化した場合はnoChangeCountをリセット
+  const resetNoChangeCount = 0
+
+  // c. 最大深度判定
+  if (scrollCount >= maxDepth) {
+    if (currentHeight !== previousHeight) {
+      // まだ変化している = 無限スクロール
+      return { newState: 'MAX_DEPTH_REACHED', shouldBreak: false, newNoChangeCount: resetNoChangeCount }
+    }
+    // 変化なし = 最下部到達
+    return { newState: 'BOTTOM_REACHED', shouldBreak: true, newNoChangeCount: resetNoChangeCount }
+  }
+
+  // d. 継続
+  return { newState: 'SCROLLING', shouldBreak: false, newNoChangeCount: resetNoChangeCount }
+}
+
+/**
  * 自動スクロール実行（状態マシン実装）
  *
  * アルゴリズム:
@@ -113,65 +164,56 @@ export const autoScroll = async (options: ScrollOptions = {}): Promise<ScrollRes
     const currentHeight = getDocumentHeight()
     const elapsed = Date.now() - startTime
 
+    // スクロールカウント増加（判定前に実行）
+    scrollCount++
+
     // 進捗コールバック呼び出し
     onProgress?.(scrollCount, state)
 
-    // 4. 判定ロジック（優先度順）
+    // 4. スクロール状態を評価
+    const evaluation = evaluateScrollState({
+      currentHeight,
+      previousHeight,
+      noChangeCount,
+      scrollCount,
+      maxDepth,
+      elapsed,
+      timeout,
+    })
 
-    // a. タイムアウト判定（最優先）
-    if (elapsed > timeout) {
-      state = 'TIMEOUT_REACHED'
-      break
-    }
+    state = evaluation.newState
+    noChangeCount = evaluation.newNoChangeCount
 
-    // b. 最下部到達判定
-    if (currentHeight === previousHeight) {
-      noChangeCount++
-      if (noChangeCount >= 3) {
-        state = 'BOTTOM_REACHED'
-        break
-      }
-    } else {
-      // 高さが変化したらリセット
-      noChangeCount = 0
-    }
+    // 最大深度到達時のユーザー選択処理
+    if (state === 'MAX_DEPTH_REACHED') {
+      if (onMaxDepthReached) {
+        const userChoice = await onMaxDepthReached()
 
-    // c. 最大深度判定
-    scrollCount++
-    if (scrollCount >= maxDepth) {
-      if (currentHeight !== previousHeight) {
-        // まだ変化している = 無限スクロール
-        state = 'MAX_DEPTH_REACHED'
-
-        if (onMaxDepthReached) {
-          const userChoice = await onMaxDepthReached()
-
-          if (userChoice === 'continue') {
-            // +20画面継続
-            scrollCount = 0 // リセット（相対的に+20）
-            state = 'SCROLLING'
-          } else if (userChoice === 'stop') {
-            // 現在の結果で終了
-            state = 'BOTTOM_REACHED'
-            break
-          } else {
-            // cancel
-            state = 'CANCELLED'
-            break
-          }
-        } else {
-          // コールバックなしの場合は停止
+        if (userChoice === 'continue') {
+          // +20画面継続
+          scrollCount = 0 // リセット（相対的に+20）
+          state = 'SCROLLING'
+        } else if (userChoice === 'stop') {
           state = 'BOTTOM_REACHED'
+          break
+        } else {
+          // cancel
+          state = 'CANCELLED'
           break
         }
       } else {
-        // 変化なし = 最下部到達
+        // コールバックなしの場合は停止
         state = 'BOTTOM_REACHED'
         break
       }
     }
 
-    // d. 継続
+    // 状態変化で終了判定
+    if (evaluation.shouldBreak) {
+      break
+    }
+
+    // 継続: 高さ更新
     previousHeight = currentHeight
   }
 

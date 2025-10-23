@@ -9,10 +9,7 @@
  * - Cancel: 処理中断
  */
 
-/**
- * ユーザー選択肢
- */
-export type UserChoice = 'continue' | 'stop' | 'cancel'
+import type { UserChoice } from '../shared/types'
 
 /**
  * オーバーレイUIのスタイル定義
