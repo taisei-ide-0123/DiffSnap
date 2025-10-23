@@ -41,6 +41,22 @@ chrome.runtime.onMessage.addListener(
       return true
     }
 
+    if (message.type === 'SCROLL_COMPLETE') {
+      console.log('Scroll completed:', message.result)
+      console.log(
+        `  State: ${message.result.state}, Count: ${message.result.scrollCount}, ` +
+          `Height: ${message.result.finalHeight}px, Elapsed: ${message.result.elapsed}ms`
+      )
+      sendResponse({ status: 'OK' })
+      return true
+    }
+
+    if (message.type === 'SCROLL_TIMEOUT') {
+      console.warn('Scroll timeout from tab:', sender.tab?.id)
+      sendResponse({ status: 'OK' })
+      return true
+    }
+
     // 未知のメッセージタイプ
     console.warn('Unknown message type:', message)
     sendResponse({ status: 'ERROR', error: 'Unknown message type' })

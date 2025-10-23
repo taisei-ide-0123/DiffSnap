@@ -18,6 +18,23 @@ export type ImageSource =
   | 'video'
   | 'iframe'
 
+// スクロール関連の型定義
+export type UserChoice = 'continue' | 'stop' | 'cancel'
+
+export type ScrollState =
+  | 'SCROLLING' // スクロール中
+  | 'BOTTOM_REACHED' // 最下部到達（成功）
+  | 'TIMEOUT_REACHED' // タイムアウト到達
+  | 'MAX_DEPTH_REACHED' // 最大深度到達（ユーザー選択待ち）
+  | 'CANCELLED' // ユーザーによるキャンセル
+
+export interface ScrollResult {
+  state: ScrollState
+  scrollCount: number
+  finalHeight: number
+  elapsed: number
+}
+
 export interface DetectionResult {
   candidates: ImageCandidate[]
   timestamp: number
@@ -33,6 +50,7 @@ export interface ImagesDetectedMessage {
 
 export interface ScrollCompleteMessage {
   type: 'SCROLL_COMPLETE'
+  result: ScrollResult
 }
 
 export interface ScrollTimeoutMessage {
@@ -121,6 +139,11 @@ export interface ImageSnapshot {
 // Background → Content メッセージ型（Phase 2で拡張）
 export interface StartScrollMessage {
   type: 'START_SCROLL'
+  options?: {
+    maxDepth?: number
+    timeout?: number
+    scrollDelay?: number
+  }
 }
 
 export type BackgroundToContentMessage = StartScrollMessage
