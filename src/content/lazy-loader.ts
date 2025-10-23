@@ -58,10 +58,10 @@ const scrollToTop = (): void => {
 /**
  * スクロール状態を評価する
  *
- * 優先度順に判定を行い、新しい状態とループ継続判定を返します。
+ * 優先度順に判定を行い、新しい状態を返します。
  *
  * @param params - 判定に必要なパラメータ
- * @returns 新しい状態とループを抜けるべきかの判定
+ * @returns 新しい状態とnoChangeCountの更新値
  */
 const evaluateScrollState = (params: {
   currentHeight: number
@@ -71,22 +71,22 @@ const evaluateScrollState = (params: {
   maxDepth: number
   elapsed: number
   timeout: number
-}): { newState: ScrollState; shouldBreak: boolean; newNoChangeCount: number } => {
+}): { newState: ScrollState; newNoChangeCount: number } => {
   const { currentHeight, previousHeight, noChangeCount, scrollCount, maxDepth, elapsed, timeout } =
     params
 
   // a. タイムアウト判定（最優先）
   if (elapsed > timeout) {
-    return { newState: 'TIMEOUT_REACHED', shouldBreak: true, newNoChangeCount: noChangeCount }
+    return { newState: 'TIMEOUT_REACHED', newNoChangeCount: noChangeCount }
   }
 
   // b. 最下部到達判定
   if (currentHeight === previousHeight) {
     const updatedNoChangeCount = noChangeCount + 1
     if (updatedNoChangeCount >= 3) {
-      return { newState: 'BOTTOM_REACHED', shouldBreak: true, newNoChangeCount: updatedNoChangeCount }
+      return { newState: 'BOTTOM_REACHED', newNoChangeCount: updatedNoChangeCount }
     }
-    return { newState: 'SCROLLING', shouldBreak: false, newNoChangeCount: updatedNoChangeCount }
+    return { newState: 'SCROLLING', newNoChangeCount: updatedNoChangeCount }
   }
 
   // 高さが変化した場合はnoChangeCountをリセット
@@ -96,11 +96,11 @@ const evaluateScrollState = (params: {
   if (scrollCount >= maxDepth) {
     // Note: b判定を通過済みのため、この時点でcurrentHeight !== previousHeightは保証されている
     // つまり、高さが変化している = 無限スクロール継続中
-    return { newState: 'MAX_DEPTH_REACHED', shouldBreak: false, newNoChangeCount: resetNoChangeCount }
+    return { newState: 'MAX_DEPTH_REACHED', newNoChangeCount: resetNoChangeCount }
   }
 
   // d. 継続
-  return { newState: 'SCROLLING', shouldBreak: false, newNoChangeCount: resetNoChangeCount }
+  return { newState: 'SCROLLING', newNoChangeCount: resetNoChangeCount }
 }
 
 /**
@@ -136,23 +136,23 @@ export const autoScroll = async (options: ScrollOptions = {}): Promise<ScrollRes
 
   // スクロールループ
   while (state === 'SCROLLING') {
-    // スクロールカウント増加（スクロール前に実行）
-    scrollCount++
-
-    // 進捗コールバック呼び出し
-    onProgress?.(scrollCount, state)
-
     // 1. 最下部にスクロール
     scrollToBottom()
 
     // 2. コンテンツ読込待機
     await delay(scrollDelay)
 
-    // 3. 現在の高さを取得
+    // 3. スクロール完了後にカウント増加
+    scrollCount++
+
+    // 4. 進捗コールバック呼び出し
+    onProgress?.(scrollCount, state)
+
+    // 5. 現在の高さを取得
     const currentHeight = getDocumentHeight()
     const elapsed = Date.now() - startTime
 
-    // 4. スクロール状態を評価
+    // 6. スクロール状態を評価
     const evaluation = evaluateScrollState({
       currentHeight,
       previousHeight,
@@ -190,8 +190,8 @@ export const autoScroll = async (options: ScrollOptions = {}): Promise<ScrollRes
       }
     }
 
-    // 状態変化で終了判定
-    if (evaluation.shouldBreak) {
+    // 状態がSCROLLINGとMAX_DEPTH_REACHED以外なら終了
+    if (state !== 'SCROLLING' && state !== 'MAX_DEPTH_REACHED') {
       break
     }
 
