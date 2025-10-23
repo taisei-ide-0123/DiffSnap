@@ -107,9 +107,6 @@ const runScrollAndDetect = async (options: {
       },
     })
 
-    // 進捗インジケーター削除
-    hideScrollProgress()
-
     log('Auto-scroll completed:', result)
 
     // スクロール完了後、画像を再検出
@@ -158,8 +155,8 @@ const runScrollAndDetect = async (options: {
         }
       }
     )
-
-    // 進捗インジケーター削除
+  } finally {
+    // 確実にUIクリーンアップ（成功時もエラー時も）
     hideScrollProgress()
   }
 }

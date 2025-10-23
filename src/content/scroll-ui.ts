@@ -186,20 +186,20 @@ export const showMaxDepthDialog = (scrollCount: number): Promise<UserChoice> => 
     // DOMに追加
     document.body.appendChild(overlay)
 
-    // クリーンアップ関数
-    const cleanup = () => {
-      overlay.remove()
-    }
-
     // ESCキーでキャンセル
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         cleanup()
-        document.removeEventListener('keydown', handleKeydown)
         resolve('cancel')
       }
     }
     document.addEventListener('keydown', handleKeydown)
+
+    // クリーンアップ関数
+    const cleanup = () => {
+      overlay.remove()
+      document.removeEventListener('keydown', handleKeydown)
+    }
   })
 }
 

@@ -22,6 +22,8 @@ describe('lazy-loader', () => {
       })
 
       // window.scrollToをモック
+      // Note: window.scrollToは複雑なオーバーロード型のため、anyキャストが必要
+      // 実行時の動作には影響しないため、テストでは許容可能
       window.scrollTo = vi.fn() as any
 
       const promise = autoScroll({ scrollDelay: 100 })
@@ -49,7 +51,7 @@ describe('lazy-loader', () => {
         },
       })
 
-      window.scrollTo = vi.fn() as any
+      window.scrollTo = vi.fn() as any  // オーバーロード型対応
 
       const promise = autoScroll({ timeout: 1000, scrollDelay: 100 })
 
@@ -72,7 +74,7 @@ describe('lazy-loader', () => {
         },
       })
 
-      window.scrollTo = vi.fn() as any
+      window.scrollTo = vi.fn() as any  // オーバーロード型対応
 
       const promise = autoScroll({ maxDepth: 5, scrollDelay: 100, timeout: 10000 })
 
@@ -104,7 +106,7 @@ describe('lazy-loader', () => {
         },
       })
 
-      window.scrollTo = vi.fn() as any
+      window.scrollTo = vi.fn() as any  // オーバーロード型対応
 
       let maxDepthReachedCount = 0
       const onMaxDepthReached = vi.fn(async () => {
@@ -148,7 +150,7 @@ describe('lazy-loader', () => {
         },
       })
 
-      window.scrollTo = vi.fn() as any
+      window.scrollTo = vi.fn() as any  // オーバーロード型対応
 
       const onMaxDepthReached = vi.fn().mockResolvedValue('stop')
 
@@ -182,7 +184,7 @@ describe('lazy-loader', () => {
         },
       })
 
-      window.scrollTo = vi.fn() as any
+      window.scrollTo = vi.fn() as any  // オーバーロード型対応
 
       const onMaxDepthReached = vi.fn().mockResolvedValue('cancel')
 
@@ -214,7 +216,7 @@ describe('lazy-loader', () => {
         },
       })
 
-      window.scrollTo = vi.fn() as any
+      window.scrollTo = vi.fn() as any  // オーバーロード型対応
 
       const onProgress = vi.fn()
 

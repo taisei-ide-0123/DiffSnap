@@ -33,6 +33,12 @@ export interface ImagesDetectedMessage {
 
 export interface ScrollCompleteMessage {
   type: 'SCROLL_COMPLETE'
+  result: {
+    state: string
+    scrollCount: number
+    finalHeight: number
+    elapsed: number
+  }
 }
 
 export interface ScrollTimeoutMessage {
