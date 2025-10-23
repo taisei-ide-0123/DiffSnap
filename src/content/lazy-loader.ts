@@ -76,7 +76,7 @@ const evaluateScrollState = (params: {
     params
 
   // a. タイムアウト判定（最優先）
-  if (elapsed > timeout) {
+  if (elapsed >= timeout) {
     return { newState: 'TIMEOUT_REACHED', newNoChangeCount: noChangeCount }
   }
 
@@ -133,6 +133,7 @@ export const autoScroll = async (options: ScrollOptions = {}): Promise<ScrollRes
   let noChangeCount = 0
   let previousHeight = getDocumentHeight()
   const startTime = Date.now()
+  let currentMaxDepth = maxDepth // 動的に変更可能なmaxDepth
 
   // スクロールループ
   while (state === 'SCROLLING') {
@@ -158,7 +159,7 @@ export const autoScroll = async (options: ScrollOptions = {}): Promise<ScrollRes
       previousHeight,
       noChangeCount,
       scrollCount,
-      maxDepth,
+      maxDepth: currentMaxDepth,
       elapsed,
       timeout,
     })
@@ -172,8 +173,8 @@ export const autoScroll = async (options: ScrollOptions = {}): Promise<ScrollRes
         const userChoice = await onMaxDepthReached()
 
         if (userChoice === 'continue') {
-          // +20画面継続
-          scrollCount = 0 // リセット（相対的に+20）
+          // +20画面継続: maxDepthを相対的に増加（scrollCountはリセットしない）
+          currentMaxDepth += maxDepth
           state = 'SCROLLING'
         } else if (userChoice === 'stop') {
           state = 'BOTTOM_REACHED'
@@ -190,8 +191,8 @@ export const autoScroll = async (options: ScrollOptions = {}): Promise<ScrollRes
       }
     }
 
-    // 状態がSCROLLINGとMAX_DEPTH_REACHED以外なら終了
-    if (state !== 'SCROLLING' && state !== 'MAX_DEPTH_REACHED') {
+    // 状態がSCROLLING以外なら終了
+    if (state !== 'SCROLLING') {
       break
     }
 

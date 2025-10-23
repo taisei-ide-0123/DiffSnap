@@ -110,7 +110,7 @@ export const showMaxDepthDialog = (scrollCount: number): Promise<UserChoice> => 
     // メッセージ
     const message = document.createElement('p')
     message.setAttribute('style', MESSAGE_STYLES)
-    message.textContent = `${scrollCount}画面分のスクロールが完了しました。まだコンテンツが読み込まれる可能性があります。続行しますか？`
+    message.textContent = `${scrollCount}回のスクロールが完了しました。さらにコンテンツを読み込みますか？`
 
     // ボタンコンテナ
     const buttonContainer = document.createElement('div')

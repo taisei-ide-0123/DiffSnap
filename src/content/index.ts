@@ -185,11 +185,11 @@ chrome.runtime.onMessage.addListener(
     log('Received message:', message)
 
     if (message.type === 'START_SCROLL') {
-      // 自動スクロール実行（非同期）
+      // 自動スクロール実行（非同期、オプション対応）
       runScrollAndDetect({
-        maxDepth: 20,
-        timeout: 15000,
-        scrollDelay: 500,
+        maxDepth: message.options?.maxDepth || 20,
+        timeout: message.options?.timeout || 15000,
+        scrollDelay: message.options?.scrollDelay || 500,
       })
 
       sendResponse({ status: 'STARTED' })

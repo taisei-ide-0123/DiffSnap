@@ -139,6 +139,11 @@ export interface ImageSnapshot {
 // Background → Content メッセージ型（Phase 2で拡張）
 export interface StartScrollMessage {
   type: 'START_SCROLL'
+  options?: {
+    maxDepth?: number
+    timeout?: number
+    scrollDelay?: number
+  }
 }
 
 export type BackgroundToContentMessage = StartScrollMessage
