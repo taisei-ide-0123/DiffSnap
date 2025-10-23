@@ -94,12 +94,9 @@ const evaluateScrollState = (params: {
 
   // c. 最大深度判定
   if (scrollCount >= maxDepth) {
-    if (currentHeight !== previousHeight) {
-      // まだ変化している = 無限スクロール
-      return { newState: 'MAX_DEPTH_REACHED', shouldBreak: false, newNoChangeCount: resetNoChangeCount }
-    }
-    // 変化なし = 最下部到達
-    return { newState: 'BOTTOM_REACHED', shouldBreak: true, newNoChangeCount: resetNoChangeCount }
+    // Note: b判定を通過済みのため、この時点でcurrentHeight !== previousHeightは保証されている
+    // つまり、高さが変化している = 無限スクロール継続中
+    return { newState: 'MAX_DEPTH_REACHED', shouldBreak: false, newNoChangeCount: resetNoChangeCount }
   }
 
   // d. 継続
@@ -139,6 +136,12 @@ export const autoScroll = async (options: ScrollOptions = {}): Promise<ScrollRes
 
   // スクロールループ
   while (state === 'SCROLLING') {
+    // スクロールカウント増加（スクロール前に実行）
+    scrollCount++
+
+    // 進捗コールバック呼び出し
+    onProgress?.(scrollCount, state)
+
     // 1. 最下部にスクロール
     scrollToBottom()
 
@@ -148,12 +151,6 @@ export const autoScroll = async (options: ScrollOptions = {}): Promise<ScrollRes
     // 3. 現在の高さを取得
     const currentHeight = getDocumentHeight()
     const elapsed = Date.now() - startTime
-
-    // スクロールカウント増加（判定前に実行）
-    scrollCount++
-
-    // 進捗コールバック呼び出し
-    onProgress?.(scrollCount, state)
 
     // 4. スクロール状態を評価
     const evaluation = evaluateScrollState({

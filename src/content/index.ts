@@ -11,7 +11,12 @@
 import { detectImages } from './detector'
 import { autoScroll } from './lazy-loader'
 import { showMaxDepthDialog, showScrollProgress, hideScrollProgress } from './scroll-ui'
-import type { ImagesDetectedMessage, BackgroundToContentMessage } from '../shared/types'
+import type {
+  ImagesDetectedMessage,
+  BackgroundToContentMessage,
+  ImageCandidate,
+  ScrollResult,
+} from '../shared/types'
 
 const DEBUG = import.meta.env.DEV
 
@@ -77,6 +82,56 @@ if (document.readyState === 'loading') {
 }
 
 /**
+ * IMAGES_DETECTEDメッセージを送信
+ */
+const sendImagesDetected = (candidates: ImageCandidate[]): void => {
+  const message: ImagesDetectedMessage = {
+    type: 'IMAGES_DETECTED',
+    candidates,
+  }
+
+  chrome.runtime.sendMessage(message, (response) => {
+    if (chrome.runtime.lastError) {
+      log('Failed to send IMAGES_DETECTED:', chrome.runtime.lastError.message)
+    } else {
+      log('IMAGES_DETECTED sent successfully, response:', response)
+    }
+  })
+}
+
+/**
+ * SCROLL_COMPLETEメッセージを送信
+ */
+const sendScrollComplete = (result: ScrollResult): void => {
+  chrome.runtime.sendMessage({ type: 'SCROLL_COMPLETE', result }, () => {
+    if (chrome.runtime.lastError) {
+      log('Failed to send SCROLL_COMPLETE:', chrome.runtime.lastError.message)
+    } else {
+      log('SCROLL_COMPLETE sent successfully')
+    }
+  })
+}
+
+/**
+ * DETECTION_ERRORメッセージを送信
+ */
+const sendDetectionError = (error: unknown): void => {
+  chrome.runtime.sendMessage(
+    {
+      type: 'DETECTION_ERROR',
+      error: error instanceof Error ? error.message : String(error),
+    },
+    () => {
+      if (chrome.runtime.lastError) {
+        log('Failed to send DETECTION_ERROR:', chrome.runtime.lastError.message)
+      } else {
+        log('DETECTION_ERROR sent successfully')
+      }
+    }
+  )
+}
+
+/**
  * 自動スクロールを実行して画像を再検出
  *
  * @param options - スクロールオプション（maxDepth, timeout等）
@@ -89,7 +144,6 @@ const runScrollAndDetect = async (options: {
   log('Starting auto-scroll...')
 
   try {
-    // 自動スクロール実行
     const result = await autoScroll({
       maxDepth: options.maxDepth || 20,
       timeout: options.timeout || 15000,
@@ -109,54 +163,15 @@ const runScrollAndDetect = async (options: {
 
     log('Auto-scroll completed:', result)
 
-    // スクロール完了後、画像を再検出
     const candidates = detectImages()
     log(`Re-detected ${candidates.length} images after scrolling`)
 
-    // Backgroundに結果を送信
-    const message: ImagesDetectedMessage = {
-      type: 'IMAGES_DETECTED',
-      candidates,
-    }
-
-    chrome.runtime.sendMessage(message, (response) => {
-      if (chrome.runtime.lastError) {
-        log('Failed to send message:', chrome.runtime.lastError.message)
-        return
-      }
-
-      log('Scroll complete message sent, response:', response)
-    })
-
-    // スクロール完了通知
-    chrome.runtime.sendMessage(
-      {
-        type: 'SCROLL_COMPLETE',
-        result,
-      },
-      () => {
-        if (chrome.runtime.lastError) {
-          log('Failed to send SCROLL_COMPLETE:', chrome.runtime.lastError.message)
-        }
-      }
-    )
+    sendImagesDetected(candidates)
+    sendScrollComplete(result)
   } catch (error) {
     log('Auto-scroll error:', error)
-
-    // エラー通知
-    chrome.runtime.sendMessage(
-      {
-        type: 'DETECTION_ERROR',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      () => {
-        if (chrome.runtime.lastError) {
-          log('Failed to send error notification:', chrome.runtime.lastError.message)
-        }
-      }
-    )
+    sendDetectionError(error)
   } finally {
-    // 確実にUIクリーンアップ（成功時もエラー時も）
     hideScrollProgress()
   }
 }
