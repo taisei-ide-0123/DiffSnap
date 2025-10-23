@@ -161,7 +161,7 @@ export class ParallelController {
 
     try {
       const response = await fetch(url, {
-        credentials: 'include',
+        credentials: 'omit',
         mode: 'cors',
         signal: controller.signal,
       })
@@ -177,7 +177,8 @@ export class ParallelController {
       }
 
       const blob = await response.blob()
-      const contentType = blob.type || 'image/unknown' // type is empty string if unknown, so || is correct here
+      // blob.type can be empty string for unknown types, use || operator
+      const contentType = blob.type || 'image/unknown'
 
       // Calculate hash (using crypto API - will implement in hasher.ts)
       const hash = await this.calculateHash(blob)
@@ -192,13 +193,17 @@ export class ParallelController {
       clearTimeout(timeoutId)
 
       if (err instanceof Error) {
+        // AbortError indicates timeout
         if (err.name === 'AbortError') {
           return { candidate, error: 'TIMEOUT' }
         }
-        if (err.message.includes('CORS')) {
-          return { candidate, error: 'CORS', message: err.message }
-        }
-        if (err.message.includes('Failed to fetch')) {
+        // TypeError is thrown by fetch for network errors including CORS
+        if (err instanceof TypeError) {
+          // Check if it's specifically a CORS error
+          if (err.message.toLowerCase().includes('cors')) {
+            return { candidate, error: 'CORS', message: err.message }
+          }
+          // Other TypeError from fetch are network errors
           return { candidate, error: 'NETWORK', message: err.message }
         }
       }
@@ -230,7 +235,8 @@ export class ParallelController {
       }
 
       const hash = await this.calculateHash(blob)
-      const contentType = blob.type || this.inferContentType(candidate.url) // type can be empty string
+      // blob.type can be empty, infer from data URL if needed
+      const contentType = blob.type || this.inferContentType(candidate.url)
 
       return {
         candidate,
@@ -293,10 +299,7 @@ export class ParallelController {
     }
 
     // lastResult is guaranteed to be set after at least one attempt
-    if (!lastResult) {
-      throw new Error('No result after retries')
-    }
-    return lastResult
+    return lastResult as FetchResult
   }
 
   /**
