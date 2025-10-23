@@ -17,7 +17,12 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "check:full": "pnpm lint && pnpm format:check && pnpm test run && pnpm build",
+    "check:size": "./scripts/check-size.sh",
+    "check:manifest": "./scripts/validate-manifest.sh",
+    "test:e2e": "./scripts/run-e2e.sh",
+    "test:e2e:ui": "./scripts/run-e2e.sh --ui",
+    "release": "./scripts/release.sh",
+    "check:full": "pnpm lint && pnpm format:check && pnpm test run && pnpm build && pnpm check:manifest && pnpm check:size",
     "preview": "vite preview"
   },
   "dependencies": {
