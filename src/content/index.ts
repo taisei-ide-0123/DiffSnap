@@ -145,17 +145,17 @@ const runScrollAndDetect = async (options: {
 
   try {
     const result = await autoScroll({
-      maxDepth: options.maxDepth || 20,
-      timeout: options.timeout || 15000,
-      scrollDelay: options.scrollDelay || 500,
+      maxDepth: options.maxDepth ?? 20,
+      timeout: options.timeout ?? 15000,
+      scrollDelay: options.scrollDelay ?? 500,
       onProgress: (scrollCount, state) => {
         log(`Scroll progress: ${scrollCount}, state: ${state}`)
-        showScrollProgress(scrollCount, options.maxDepth || 20)
+        showScrollProgress(scrollCount, options.maxDepth ?? 20)
       },
       onMaxDepthReached: async () => {
         log('Max depth reached, showing dialog...')
         hideScrollProgress()
-        const choice = await showMaxDepthDialog(options.maxDepth || 20)
+        const choice = await showMaxDepthDialog(options.maxDepth ?? 20)
         log('User choice:', choice)
         return choice
       },
@@ -187,9 +187,9 @@ chrome.runtime.onMessage.addListener(
     if (message.type === 'START_SCROLL') {
       // 自動スクロール実行（非同期、オプション対応）
       runScrollAndDetect({
-        maxDepth: message.options?.maxDepth || 20,
-        timeout: message.options?.timeout || 15000,
-        scrollDelay: message.options?.scrollDelay || 500,
+        maxDepth: message.options?.maxDepth ?? 20,
+        timeout: message.options?.timeout ?? 15000,
+        scrollDelay: message.options?.scrollDelay ?? 500,
       })
 
       sendResponse({ status: 'STARTED' })

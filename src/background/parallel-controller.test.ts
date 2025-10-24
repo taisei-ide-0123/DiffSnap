@@ -154,8 +154,8 @@ describe('ParallelController', () => {
 
       // Verify exponential backoff (1s, 2s between attempts)
       if (attemptTimes.length >= 3) {
-        const delay1 = attemptTimes[1] - attemptTimes[0]
-        const delay2 = attemptTimes[2] - attemptTimes[1]
+        const delay1 = (attemptTimes[1] ?? 0) - (attemptTimes[0] ?? 0)
+        const delay2 = (attemptTimes[2] ?? 0) - (attemptTimes[1] ?? 0)
 
         expect(delay1).toBeGreaterThanOrEqual(900) // ~1s
         expect(delay2).toBeGreaterThanOrEqual(1900) // ~2s

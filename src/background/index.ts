@@ -2,8 +2,14 @@
 // Manifest V3 compliant
 
 import type { ContentToBackgroundMessage } from '../shared/types'
+import { initKeepAlive, handleKeepAliveAlarm } from './keep-alive'
 
 console.log('DiffSnap background service worker initialized')
+
+// Keep-Alive初期化
+initKeepAlive().catch((err) => {
+  console.error('Failed to initialize Keep-Alive:', err)
+})
 
 // Message handler
 chrome.runtime.onMessage.addListener(
@@ -64,6 +70,13 @@ chrome.runtime.onMessage.addListener(
   }
 )
 
+// Alarms listener for Keep-Alive
+chrome.alarms.onAlarm.addListener((alarm) => {
+  handleKeepAliveAlarm(alarm).catch((err) => {
+    console.error('Keep-Alive alarm handler error:', err)
+  })
+})
+
 // Extension installed/updated handler
 chrome.runtime.onInstalled.addListener((details) => {
   console.log('DiffSnap installed/updated:', details.reason)
@@ -71,8 +84,16 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     // First install
     console.log('First time installation')
+    // Keep-Alive初期化（再起動時にも実行）
+    initKeepAlive().catch((err) => {
+      console.error('Failed to initialize Keep-Alive on install:', err)
+    })
   } else if (details.reason === 'update') {
     // Extension updated
     console.log('Extension updated')
+    // Keep-Alive初期化
+    initKeepAlive().catch((err) => {
+      console.error('Failed to initialize Keep-Alive on update:', err)
+    })
   }
 })
