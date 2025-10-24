@@ -86,6 +86,17 @@ describe('keep-alive', () => {
 
       expect(consoleSpy).toHaveBeenCalledWith('Keep-alive: processing continues')
     })
+
+    it('should clear badge when clear-badge alarm fires', async () => {
+      const alarm = { name: 'clear-badge' } as chrome.alarms.Alarm
+      mockChrome.action.setBadgeText.mockResolvedValue(undefined)
+      mockChrome.alarms.clear.mockResolvedValue(true)
+
+      await handleKeepAliveAlarm(alarm)
+
+      expect(mockChrome.action.setBadgeText).toHaveBeenCalledWith({ text: '' })
+      expect(mockChrome.alarms.clear).toHaveBeenCalledWith('clear-badge')
+    })
   })
 
   describe('saveCheckpoint', () => {
@@ -152,12 +163,10 @@ describe('keep-alive', () => {
   })
 
   describe('showCompleteBadge', () => {
-    it('should show checkmark with green background', async () => {
+    it('should show checkmark with green background and schedule clear', async () => {
       mockChrome.action.setBadgeText.mockResolvedValue(undefined)
       mockChrome.action.setBadgeBackgroundColor.mockResolvedValue(undefined)
-
-      // setTimeoutをモック
-      vi.useFakeTimers()
+      mockChrome.alarms.create.mockResolvedValue(undefined)
 
       await showCompleteBadge()
 
@@ -165,8 +174,9 @@ describe('keep-alive', () => {
       expect(mockChrome.action.setBadgeBackgroundColor).toHaveBeenCalledWith({
         color: '#10B981',
       })
-
-      vi.useRealTimers()
+      expect(mockChrome.alarms.create).toHaveBeenCalledWith('clear-badge', {
+        delayInMinutes: 0.05,
+      })
     })
   })
 

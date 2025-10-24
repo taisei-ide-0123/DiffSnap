@@ -82,18 +82,9 @@ chrome.runtime.onInstalled.addListener((details) => {
   console.log('DiffSnap installed/updated:', details.reason)
 
   if (details.reason === 'install') {
-    // First install
     console.log('First time installation')
-    // Keep-Alive初期化（再起動時にも実行）
-    initKeepAlive().catch((err) => {
-      console.error('Failed to initialize Keep-Alive on install:', err)
-    })
   } else if (details.reason === 'update') {
-    // Extension updated
     console.log('Extension updated')
-    // Keep-Alive初期化
-    initKeepAlive().catch((err) => {
-      console.error('Failed to initialize Keep-Alive on update:', err)
-    })
   }
+  // Keep-Alive初期化は起動時に一度実行されるため、ここでは不要
 })

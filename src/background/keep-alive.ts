@@ -4,8 +4,10 @@
 import type { ProcessingCheckpoint } from '../shared/types'
 
 const KEEP_ALIVE_ALARM = 'keep-alive'
-const KEEP_ALIVE_INTERVAL = 0.5 // 30秒ごと（分単位）
-const CHECKPOINT_TTL = 60000 // 1分以内なら再開可能
+const CLEAR_BADGE_ALARM = 'clear-badge'
+const KEEP_ALIVE_INTERVAL_MINUTES = 0.5 // 30秒ごと
+const CLEAR_BADGE_DELAY_MINUTES = 0.05 // 3秒（0.05分）
+const CHECKPOINT_TTL_MS = 60000 // 1分以内なら再開可能
 
 /**
  * Keep-Alive機構の初期化
@@ -16,7 +18,7 @@ export const initKeepAlive = async (): Promise<void> => {
 
   // 30秒ごとにService Workerを起動
   await chrome.alarms.create(KEEP_ALIVE_ALARM, {
-    periodInMinutes: KEEP_ALIVE_INTERVAL,
+    periodInMinutes: KEEP_ALIVE_INTERVAL_MINUTES,
   })
 
   console.log('Keep-Alive initialized: alarm set to 30sec interval')
@@ -26,17 +28,22 @@ export const initKeepAlive = async (): Promise<void> => {
  * アラームリスナー
  */
 export const handleKeepAliveAlarm = async (alarm: chrome.alarms.Alarm): Promise<void> => {
-  if (alarm.name !== KEEP_ALIVE_ALARM) return
+  if (alarm.name === KEEP_ALIVE_ALARM) {
+    // TODO(Issue#11): orchestrator実装時にactiveProcessingフラグを設定/解除
+    // 処理中かチェック
+    const { activeProcessing } = await chrome.storage.session.get(['activeProcessing'])
 
-  // 処理中かチェック
-  const { activeProcessing } = await chrome.storage.session.get(['activeProcessing'])
+    if (activeProcessing) {
+      console.log('Keep-alive: processing continues')
+      // このコード実行自体がService Workerを起動 → 30秒カウンタリセット
 
-  if (activeProcessing) {
-    console.log('Keep-alive: processing continues')
-    // このコード実行自体がService Workerを起動 → 30秒カウンタリセット
-
-    // チェックポイントから再開が必要か確認
-    await resumeProcessingIfNeeded()
+      // チェックポイントから再開が必要か確認
+      await resumeProcessingIfNeeded()
+    }
+  } else if (alarm.name === CLEAR_BADGE_ALARM) {
+    // バッジクリア
+    await chrome.action.setBadgeText({ text: '' })
+    await chrome.alarms.clear(CLEAR_BADGE_ALARM)
   }
 }
 
@@ -55,36 +62,43 @@ export const saveCheckpoint = async (checkpoint: ProcessingCheckpoint): Promise<
  * チェックポイントから処理再開
  */
 export const resumeProcessingIfNeeded = async (): Promise<void> => {
-  const allData = await chrome.storage.session.get(null)
-  const checkpointKeys = Object.keys(allData).filter((k) => k.startsWith('checkpoint_'))
+  try {
+    const allData = await chrome.storage.session.get(null)
+    const checkpointKeys = Object.keys(allData).filter((k) => k.startsWith('checkpoint_'))
 
-  for (const key of checkpointKeys) {
-    const checkpoint = allData[key] as ProcessingCheckpoint
-    const elapsed = Date.now() - checkpoint.lastCheckpointAt
+    for (const key of checkpointKeys) {
+      const checkpoint = allData[key] as ProcessingCheckpoint
+      const elapsed = Date.now() - checkpoint.lastCheckpointAt
 
-    if (elapsed < CHECKPOINT_TTL) {
-      // 1分以内なら再開
-      console.log(`Resuming from checkpoint: ${key}`)
-      await resumeFromCheckpoint(checkpoint)
-    } else {
-      // 古いチェックポイントは削除
-      console.log(`Removing stale checkpoint: ${key}`)
-      await chrome.storage.session.remove(key)
+      if (elapsed < CHECKPOINT_TTL_MS) {
+        // 1分以内なら再開
+        console.log(`Resuming from checkpoint: ${key}`)
+        await resumeFromCheckpoint(checkpoint)
+      } else {
+        // 古いチェックポイントは削除
+        console.log(`Removing stale checkpoint: ${key}`)
+        await chrome.storage.session.remove(key)
+      }
     }
+  } catch (error) {
+    console.error('Failed to resume processing:', error)
   }
 }
 
 /**
  * チェックポイントから処理を再開
+ * TODO(Issue#11): orchestrator実装時に実際の処理再開ロジックを実装
  */
 const resumeFromCheckpoint = async (checkpoint: ProcessingCheckpoint): Promise<void> => {
   const { candidates, completedIndices } = checkpoint
-  const remaining = candidates.filter((_, i) => !completedIndices.includes(i))
+  // O(n)の最適化: Setを使用
+  const completedSet = new Set(completedIndices)
+  const remaining = candidates.filter((_, i) => !completedSet.has(i))
 
   console.log(`Resuming: ${remaining.length} images remaining`)
 
-  // 実際の再開処理はここでは行わない（orchestratorが担当）
-  // ここでは状態を復元するのみ
+  // TODO(Issue#11): 実際の再開処理はorchestrator実装時に追加
+  // 現時点では状態を復元するのみ（orchestratorが参照）
   await chrome.storage.session.set({
     resumeCheckpoint: checkpoint,
   })
@@ -115,15 +129,16 @@ export const updateBadge = async (completed: number, total: number): Promise<voi
 
 /**
  * 完了バッジ表示
+ * Service Workerでも動作するようAlarms APIを使用
  */
 export const showCompleteBadge = async (): Promise<void> => {
   await chrome.action.setBadgeText({ text: '✓' })
   await chrome.action.setBadgeBackgroundColor({ color: '#10B981' }) // green-500
 
-  // 3秒後にクリア
-  setTimeout(async () => {
-    await chrome.action.setBadgeText({ text: '' })
-  }, 3000)
+  // 3秒後にクリア（Alarms APIを使用してService Worker休止に対応）
+  await chrome.alarms.create(CLEAR_BADGE_ALARM, {
+    delayInMinutes: CLEAR_BADGE_DELAY_MINUTES,
+  })
 }
 
 /**
