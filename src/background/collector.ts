@@ -1,0 +1,215 @@
+/**
+ * Image Collector - Orchestrates fetching, hashing, and deduplication
+ *
+ * Responsibilities:
+ * - Fetch images using ParallelController
+ * - Hash-based deduplication
+ * - Progress notification to Popup
+ * - Error handling and retry coordination
+ */
+
+import { ParallelController, isFetchSuccess, type FetchResult } from './parallel-controller'
+import type { ImageCandidate, ImageSnapshot, StateUpdateMessage } from '@/shared/types'
+
+export interface CollectionProgress {
+  total: number
+  completed: number
+  failed: number
+  deduplicated: number
+}
+
+export interface CollectedImage {
+  candidate: ImageCandidate
+  blob: Blob
+  hash: string
+  contentType: string
+  snapshot: ImageSnapshot
+}
+
+export interface CollectionResult {
+  images: CollectedImage[]
+  failed: Array<{ candidate: ImageCandidate; error: string }>
+  stats: {
+    total: number
+    fetched: number
+    deduplicated: number
+    failed: number
+  }
+}
+
+export interface CollectorOptions {
+  onProgress?: (progress: CollectionProgress) => void
+  tabId?: number
+}
+
+/**
+ * Image Collector class
+ *
+ * Orchestrates the collection process:
+ * 1. Fetch images in parallel (via ParallelController)
+ * 2. Deduplicate by hash
+ * 3. Report progress
+ * 4. Return collected images and metadata
+ */
+export class ImageCollector {
+  private controller: ParallelController
+  private options: CollectorOptions
+
+  constructor(options: CollectorOptions = {}) {
+    this.controller = new ParallelController()
+    this.options = options
+  }
+
+  /**
+   * Send progress update to Popup (if tabId provided)
+   */
+  private async notifyProgress(progress: CollectionProgress): Promise<void> {
+    // Call custom progress callback
+    this.options.onProgress?.(progress)
+
+    // Send message to Popup if tabId is provided
+    if (this.options.tabId !== undefined) {
+      const message: StateUpdateMessage = {
+        type: 'STATE_UPDATE',
+        state: {
+          status: 'collecting',
+          progress: Math.round((progress.completed / progress.total) * 100),
+        },
+      }
+
+      try {
+        // Try to send to popup
+        await chrome.runtime.sendMessage(message)
+      } catch (err) {
+        // Popup might be closed, ignore
+        console.debug('Failed to send progress update:', err)
+      }
+    }
+  }
+
+  /**
+   * Create ImageSnapshot from fetch result
+   */
+  private createSnapshot(result: FetchResult): ImageSnapshot | null {
+    if (!isFetchSuccess(result)) {
+      return null
+    }
+
+    const { candidate, hash } = result
+
+    return {
+      hash,
+      url: candidate.url,
+      width: candidate.width ?? 0,
+      height: candidate.height ?? 0,
+      alt: candidate.alt,
+      context: undefined, // Will be populated in Phase 2
+      firstSeenAt: Date.now(),
+    }
+  }
+
+  /**
+   * Collect images with deduplication
+   *
+   * Algorithm:
+   * 1. Fetch all images in parallel using ParallelController
+   * 2. As results arrive, deduplicate by hash
+   * 3. Report progress after each batch
+   * 4. Return deduplicated images and failure list
+   */
+  async collect(candidates: ImageCandidate[]): Promise<CollectionResult> {
+    const total = candidates.length
+    let completed = 0
+    let failed = 0
+    let deduplicated = 0
+
+    // Hash-based deduplication map
+    const hashMap = new Map<string, CollectedImage>()
+    const failureList: Array<{ candidate: ImageCandidate; error: string }> = []
+
+    // Initial progress
+    await this.notifyProgress({ total, completed, failed, deduplicated })
+
+    // Fetch all images in parallel
+    const results = await this.controller.fetchAll(candidates)
+
+    // Process results
+    for (const result of results) {
+      if (isFetchSuccess(result)) {
+        const { candidate, blob, hash, contentType } = result
+
+        // Check for duplicate hash
+        if (hashMap.has(hash)) {
+          deduplicated++
+        } else {
+          // Create snapshot
+          const snapshot = this.createSnapshot(result)
+
+          if (snapshot) {
+            hashMap.set(hash, {
+              candidate,
+              blob,
+              hash,
+              contentType,
+              snapshot,
+            })
+          }
+        }
+
+        completed++
+      } else {
+        // Fetch failed
+        failureList.push({
+          candidate: result.candidate,
+          error: result.error,
+        })
+        completed++
+        failed++
+      }
+
+      // Report progress periodically (every 10 images or at end)
+      if (completed % 10 === 0 || completed === total) {
+        await this.notifyProgress({ total, completed, failed, deduplicated })
+      }
+    }
+
+    // Final progress update
+    await this.notifyProgress({ total, completed, failed, deduplicated })
+
+    return {
+      images: Array.from(hashMap.values()),
+      failed: failureList,
+      stats: {
+        total,
+        fetched: hashMap.size,
+        deduplicated,
+        failed,
+      },
+    }
+  }
+
+  /**
+   * Get controller stats (for debugging)
+   */
+  getStats() {
+    return this.controller.getStats()
+  }
+
+  /**
+   * Reset collector state (for testing)
+   */
+  reset() {
+    this.controller.reset()
+  }
+}
+
+/**
+ * Convenience function for simple collection
+ */
+export const collectImages = async (
+  candidates: ImageCandidate[],
+  options?: CollectorOptions
+): Promise<CollectionResult> => {
+  const collector = new ImageCollector(options)
+  return collector.collect(candidates)
+}
