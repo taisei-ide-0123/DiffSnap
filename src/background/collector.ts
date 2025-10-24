@@ -73,7 +73,8 @@ export class ImageCollector {
         type: 'STATE_UPDATE',
         state: {
           status: 'collecting',
-          progress: Math.round((progress.completed / progress.total) * 100),
+          progress:
+            progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0,
         },
       }
 
@@ -119,6 +120,16 @@ export class ImageCollector {
    */
   async collect(candidates: ImageCandidate[]): Promise<CollectionResult> {
     const total = candidates.length
+
+    // Early return for empty input
+    if (total === 0) {
+      return {
+        images: [],
+        failed: [],
+        stats: { total: 0, fetched: 0, deduplicated: 0, failed: 0 },
+      }
+    }
+
     let completed = 0
     let failed = 0
     let deduplicated = 0
@@ -167,8 +178,8 @@ export class ImageCollector {
         failed++
       }
 
-      // Report progress periodically (every 10 images or at end)
-      if (completed % 10 === 0 || completed === total) {
+      // Report progress periodically (every 10 images)
+      if (completed % 10 === 0) {
         await this.notifyProgress({ total, completed, failed, deduplicated })
       }
     }

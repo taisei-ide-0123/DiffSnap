@@ -24,7 +24,6 @@ describe('ImageCollector', () => {
         return new Response(`content-${callCount}`, {
           status: 200,
           headers: { 'Content-Type': 'image/jpeg' },
-          headers: { 'Content-Type': 'image/jpeg' },
         })
       })
 
@@ -50,7 +49,6 @@ describe('ImageCollector', () => {
         }
         return new Response('test', {
           status: 200,
-          headers: { 'Content-Type': 'image/jpeg' },
           headers: { 'Content-Type': 'image/jpeg' },
         })
       })
