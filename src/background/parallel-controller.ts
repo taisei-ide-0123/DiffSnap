@@ -286,7 +286,7 @@ export class ParallelController {
    */
   private inferContentType(url: string): string {
     const match = url.match(/^data:([^;,]+)/)
-    return match ? match[1] : 'image/unknown'
+    return match?.[1] ?? 'image/unknown'
   }
 
   /**

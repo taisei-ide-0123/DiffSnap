@@ -147,3 +147,20 @@ export interface StartScrollMessage {
 }
 
 export type BackgroundToContentMessage = StartScrollMessage
+
+// Keep-Alive & Checkpoint 型定義
+export interface FailedImage {
+  url: string
+  error: string
+  retryCount: number
+}
+
+export interface ProcessingCheckpoint {
+  tabId: number
+  url: string
+  candidates: ImageCandidate[]
+  completedIndices: number[]
+  failedCandidates: FailedImage[]
+  lastCheckpointAt: number
+  phase: 'fetching' | 'zipping'
+}

@@ -221,15 +221,19 @@ describe('hasher', () => {
       const originalFileReader = global.FileReader
       const abortSpy = vi.fn()
 
-      class MockFileReader {
+      class MockFileReader implements Partial<FileReader> {
         result: ArrayBuffer | null = null
         error: DOMException | null = new DOMException('Mock read error')
+        readyState = 0 as typeof FileReader.EMPTY
+        EMPTY = 0 as const
+        LOADING = 1 as const
+        DONE = 2 as const
 
         readAsArrayBuffer() {
           // エラーイベントを非同期で発火
           setTimeout(() => {
             if (this.onerror) {
-              this.onerror(new Event('error') as ProgressEvent<FileReader>)
+              this.onerror.call(this as unknown as FileReader, new Event('error') as ProgressEvent<FileReader>)
             }
           }, 0)
         }
@@ -237,6 +241,16 @@ describe('hasher', () => {
         abort = abortSpy
         onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
         onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        onabort: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        onloadend: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        onloadstart: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        onprogress: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        readAsDataURL = vi.fn()
+        readAsText = vi.fn()
+        readAsBinaryString = vi.fn()
+        addEventListener = vi.fn()
+        removeEventListener = vi.fn()
+        dispatchEvent = vi.fn()
       }
 
       // blob.arrayBufferが存在しない環境をシミュレート
@@ -258,16 +272,31 @@ describe('hasher', () => {
       // モックFileReaderで即座にエラー発生
       const originalFileReader = global.FileReader
 
-      class ErrorFileReader {
+      class ErrorFileReader implements Partial<FileReader> {
         error = new DOMException('Read failed')
+        result: ArrayBuffer | null = null
+        readyState = 0 as typeof FileReader.EMPTY
+        EMPTY = 0 as const
+        LOADING = 1 as const
+        DONE = 2 as const
         abort = vi.fn()
         readAsArrayBuffer() {
           if (this.onerror) {
-            this.onerror(new Event('error') as ProgressEvent<FileReader>)
+            this.onerror.call(this as unknown as FileReader, new Event('error') as ProgressEvent<FileReader>)
           }
         }
         onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
         onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        onabort: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        onloadend: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        onloadstart: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        onprogress: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null
+        readAsDataURL = vi.fn()
+        readAsText = vi.fn()
+        readAsBinaryString = vi.fn()
+        addEventListener = vi.fn()
+        removeEventListener = vi.fn()
+        dispatchEvent = vi.fn()
       }
 
       const blob = new Blob(['test data'])

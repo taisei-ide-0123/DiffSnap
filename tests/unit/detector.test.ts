@@ -57,8 +57,8 @@ describe('画像検出エンジン', () => {
       const candidates = detectImgElements(baseUrl)
 
       expect(candidates).toHaveLength(2)
-      expect(candidates[0].url).toBe('http://localhost:3000/images/photo.jpg')
-      expect(candidates[1].url).toBe('http://localhost:3000/assets/logo.png')
+      expect(candidates[0]?.url).toBe('http://localhost:3000/images/photo.jpg')
+      expect(candidates[1]?.url).toBe('http://localhost:3000/assets/logo.png')
     })
 
     it('src属性がない画像をスキップする', () => {
@@ -86,7 +86,7 @@ describe('画像検出エンジン', () => {
       const candidates = detectImgElements(baseUrl)
 
       expect(candidates).toHaveLength(1)
-      expect(candidates[0].url).toBe('https://example.com/current.jpg')
+      expect(candidates[0]?.url).toBe('https://example.com/current.jpg')
     })
 
     it('naturalWidth/naturalHeightを優先する', () => {
@@ -292,7 +292,7 @@ describe('画像検出エンジン', () => {
         width: 800,
         height: 600,
       })
-      expect(candidates[0].url).toMatch(/^data:image\/png;base64,/)
+      expect(candidates[0]?.url).toMatch(/^data:image\/png;base64,/)
     })
 
     it('CORS汚染されたcanvasをスキップする', () => {
@@ -321,9 +321,9 @@ describe('画像検出エンジン', () => {
       const candidates = detectCanvasElements(baseUrl)
 
       expect(candidates).toHaveLength(3)
-      expect(candidates[0].width).toBe(100)
-      expect(candidates[1].width).toBe(200)
-      expect(candidates[2].width).toBe(300)
+      expect(candidates[0]?.width).toBe(100)
+      expect(candidates[1]?.width).toBe(200)
+      expect(candidates[2]?.width).toBe(300)
     })
   })
 
@@ -366,7 +366,7 @@ describe('画像検出エンジン', () => {
 
       // 同じURLは1つのみ
       expect(candidates).toHaveLength(1)
-      expect(candidates[0].url).toBe('http://localhost:3000/duplicate.jpg')
+      expect(candidates[0]?.url).toBe('http://localhost:3000/duplicate.jpg')
     })
 
     it('重複時により詳細な情報を保持する', () => {
@@ -410,7 +410,7 @@ describe('画像検出エンジン', () => {
       const candidates = detectImages()
 
       expect(candidates).toHaveLength(1)
-      expect(candidates[0].url).toBe(dataUrl)
+      expect(candidates[0]?.url).toBe(dataUrl)
     })
 
     it('大量の画像を効率的に処理する', () => {
@@ -441,7 +441,7 @@ describe('画像検出エンジン', () => {
       const candidates = detectImgElements(baseUrl)
 
       // alt属性が空でない場合はaltを使用
-      expect(candidates[0].alt).toBe('Alt Text')
+      expect(candidates[0]?.alt).toBe('Alt Text')
     })
 
     it('alt属性が空の場合はaria-labelを使用する', () => {
@@ -451,7 +451,7 @@ describe('画像検出エンジン', () => {
 
       const candidates = detectImgElements(baseUrl)
 
-      expect(candidates[0].alt).toBe('Main Product')
+      expect(candidates[0]?.alt).toBe('Main Product')
     })
 
     it('title属性をフォールバックとして使用する', () => {
@@ -461,7 +461,7 @@ describe('画像検出エンジン', () => {
 
       const candidates = detectImgElements(baseUrl)
 
-      expect(candidates[0].alt).toBe('Title Text')
+      expect(candidates[0]?.alt).toBe('Title Text')
     })
 
     it('figcaption要素からコンテキストを抽出する', () => {
@@ -474,7 +474,7 @@ describe('画像検出エンジン', () => {
 
       const candidates = detectImgElements(baseUrl)
 
-      expect(candidates[0].alt).toBe('Beautiful Sunset')
+      expect(candidates[0]?.alt).toBe('Beautiful Sunset')
     })
 
     it('祖先要素のテキストノードを抽出する', () => {
@@ -488,7 +488,7 @@ describe('画像検出エンジン', () => {
       const candidates = detectImgElements(baseUrl)
 
       // 祖先要素の直接のテキストノードを取得
-      expect(candidates[0].alt).toContain('Product Description')
+      expect(candidates[0]?.alt).toContain('Product Description')
     })
 
     it('50文字を超えるコンテキストを切り詰める', () => {
@@ -501,7 +501,7 @@ describe('画像検出エンジン', () => {
       const candidates = detectImgElements(baseUrl)
 
       // aria-labelが50文字に切り詰められる
-      expect(candidates[0].alt?.length).toBeLessThanOrEqual(50)
+      expect(candidates[0]?.alt?.length).toBeLessThanOrEqual(50)
     })
   })
 })
