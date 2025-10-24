@@ -6,9 +6,27 @@ import { initKeepAlive, handleKeepAliveAlarm } from './keep-alive'
 
 console.log('DiffSnap background service worker initialized')
 
-// Keep-Alive初期化
-initKeepAlive().catch((err) => {
-  console.error('Failed to initialize Keep-Alive:', err)
+// Keep-Alive初期化（リトライ機構付き）
+const initWithRetry = async (retries = 3): Promise<void> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await initKeepAlive()
+      console.log('Keep-Alive initialized successfully')
+      return
+    } catch (err) {
+      console.error(`Keep-Alive init attempt ${i + 1}/${retries} failed:`, err)
+      if (i === retries - 1) {
+        throw new Error(`Failed to initialize Keep-Alive after ${retries} attempts`)
+      }
+      // 指数バックオフでリトライ（1秒、2秒、3秒）
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)))
+    }
+  }
+}
+
+initWithRetry().catch((err) => {
+  console.error('Keep-Alive initialization failed permanently:', err)
+  // 致命的エラー: Service Workerは30秒で停止する可能性あり
 })
 
 // Message handler

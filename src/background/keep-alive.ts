@@ -30,7 +30,8 @@ export const initKeepAlive = async (): Promise<void> => {
 export const handleKeepAliveAlarm = async (alarm: chrome.alarms.Alarm): Promise<void> => {
   if (alarm.name === KEEP_ALIVE_ALARM) {
     // TODO(Issue#11): orchestrator実装時にactiveProcessingフラグを設定/解除
-    // 処理中かチェック
+    // 現在: フラグ未設定（常にfalse）
+    // Issue#11後: orchestrator起動時にtrue、完了/エラー時にfalseを設定
     const { activeProcessing } = await chrome.storage.session.get(['activeProcessing'])
 
     if (activeProcessing) {
@@ -59,6 +60,23 @@ export const saveCheckpoint = async (checkpoint: ProcessingCheckpoint): Promise<
 }
 
 /**
+ * 型ガード: ProcessingCheckpointの検証
+ */
+const isValidCheckpoint = (data: unknown): data is ProcessingCheckpoint => {
+  if (typeof data !== 'object' || data === null) return false
+  const checkpoint = data as Record<string, unknown>
+  return (
+    typeof checkpoint.tabId === 'number' &&
+    typeof checkpoint.url === 'string' &&
+    Array.isArray(checkpoint.candidates) &&
+    Array.isArray(checkpoint.completedIndices) &&
+    Array.isArray(checkpoint.failedCandidates) &&
+    typeof checkpoint.lastCheckpointAt === 'number' &&
+    (checkpoint.phase === 'fetching' || checkpoint.phase === 'zipping')
+  )
+}
+
+/**
  * チェックポイントから処理再開
  */
 export const resumeProcessingIfNeeded = async (): Promise<void> => {
@@ -67,18 +85,27 @@ export const resumeProcessingIfNeeded = async (): Promise<void> => {
     const checkpointKeys = Object.keys(allData).filter((k) => k.startsWith('checkpoint_'))
 
     for (const key of checkpointKeys) {
-      const checkpoint = allData[key] as ProcessingCheckpoint
+      const checkpoint = allData[key]
+
+      // 型ガードで安全性を確保
+      if (!isValidCheckpoint(checkpoint)) {
+        console.warn(`Invalid checkpoint format: ${key}`)
+        await chrome.storage.session.remove(key)
+        continue
+      }
+
       const elapsed = Date.now() - checkpoint.lastCheckpointAt
 
-      if (elapsed < CHECKPOINT_TTL_MS) {
-        // 1分以内なら再開
-        console.log(`Resuming from checkpoint: ${key}`)
-        await resumeFromCheckpoint(checkpoint)
-      } else {
-        // 古いチェックポイントは削除
-        console.log(`Removing stale checkpoint: ${key}`)
+      // システム時刻が巻き戻った場合のエッジケース対応
+      if (elapsed < 0 || elapsed >= CHECKPOINT_TTL_MS) {
+        console.warn(`Removing checkpoint: ${key}, elapsed=${elapsed}ms`)
         await chrome.storage.session.remove(key)
+        continue
       }
+
+      // 1分以内なら再開
+      console.log(`Resuming from checkpoint: ${key}`)
+      await resumeFromCheckpoint(checkpoint)
     }
   } catch (error) {
     console.error('Failed to resume processing:', error)
@@ -88,19 +115,21 @@ export const resumeProcessingIfNeeded = async (): Promise<void> => {
 /**
  * チェックポイントから処理を再開
  * TODO(Issue#11): orchestrator実装時に実際の処理再開ロジックを実装
+ * 現在: 再開状態をタブIDで分離保存（orchestratorが参照予定）
+ * Issue#11後: orchestrator起動時に該当タブのresumeCheckpointを読み込み、実際の処理を再開
  */
 const resumeFromCheckpoint = async (checkpoint: ProcessingCheckpoint): Promise<void> => {
-  const { candidates, completedIndices } = checkpoint
+  const { candidates, completedIndices, tabId } = checkpoint
   // O(n)の最適化: Setを使用
   const completedSet = new Set(completedIndices)
   const remaining = candidates.filter((_, i) => !completedSet.has(i))
 
-  console.log(`Resuming: ${remaining.length} images remaining`)
+  console.log(`Resuming: ${remaining.length} images remaining (tabId: ${tabId})`)
 
   // TODO(Issue#11): 実際の再開処理はorchestrator実装時に追加
-  // 現時点では状態を復元するのみ（orchestratorが参照）
+  // 複数タブ対応: タブIDでキーを分離
   await chrome.storage.session.set({
-    resumeCheckpoint: checkpoint,
+    [`resumeCheckpoint_${tabId}`]: checkpoint,
   })
 }
 
