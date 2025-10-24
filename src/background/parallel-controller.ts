@@ -66,43 +66,47 @@ export class ParallelController {
 
   /**
    * Wait for and acquire slot atomically
+   *
+   * Algorithm:
+   * 1. Try immediate acquisition if both limits satisfied
+   * 2. Otherwise, enqueue promises for each unsatisfied constraint
+   * 3. Wait for ALL constraints to be satisfied (Promise.all)
+   * 4. Loop retry (another task might have taken the slot)
+   *
+   * This prevents race conditions and stack overflow from recursion.
    */
   private async waitAndAcquireSlot(domain: string): Promise<void> {
-    // Try immediate acquisition
-    if (
-      this.globalActiveCount < this.GLOBAL_LIMIT &&
-      (this.domainCounts.get(domain) ?? 0) < this.DOMAIN_LIMIT
-    ) {
-      this.acquireSlot(domain)
-      return
-    }
+    while (true) {
+      // Try immediate acquisition
+      if (
+        this.globalActiveCount < this.GLOBAL_LIMIT &&
+        (this.domainCounts.get(domain) ?? 0) < this.DOMAIN_LIMIT
+      ) {
+        this.acquireSlot(domain)
+        return
+      }
 
-    // Need to wait - create promises for both constraints
-    const promises: Promise<void>[] = []
+      // Need to wait - create promises for both constraints
+      const promises: Promise<void>[] = []
 
-    if (this.globalActiveCount >= this.GLOBAL_LIMIT) {
-      promises.push(new Promise<void>((resolve) => this.globalQueue.push(resolve)))
-    }
+      if (this.globalActiveCount >= this.GLOBAL_LIMIT) {
+        promises.push(new Promise<void>((resolve) => this.globalQueue.push(resolve)))
+      }
 
-    if ((this.domainCounts.get(domain) ?? 0) >= this.DOMAIN_LIMIT) {
-      promises.push(
-        new Promise<void>((resolve) => {
-          const queue = this.domainQueues.get(domain) ?? []
-          queue.push(resolve)
-          this.domainQueues.set(domain, queue)
-        })
-      )
-    }
+      if ((this.domainCounts.get(domain) ?? 0) >= this.DOMAIN_LIMIT) {
+        promises.push(
+          new Promise<void>((resolve) => {
+            const queue = this.domainQueues.get(domain) ?? []
+            queue.push(resolve)
+            this.domainQueues.set(domain, queue)
+          })
+        )
+      }
 
-    // Wait for constraints to be satisfied
-    if (promises.length > 0) {
+      // Wait for constraints to be satisfied
       await Promise.all(promises)
-      // After waking up, recursively try again (another task might have taken the slot)
-      return this.waitAndAcquireSlot(domain)
+      // Loop continues to retry (another task might have taken the slot)
     }
-
-    // Both constraints satisfied, acquire
-    this.acquireSlot(domain)
   }
 
   /**
@@ -161,7 +165,7 @@ export class ParallelController {
 
     try {
       const response = await fetch(url, {
-        credentials: 'omit',
+        credentials: 'include',
         mode: 'cors',
         signal: controller.signal,
       })
