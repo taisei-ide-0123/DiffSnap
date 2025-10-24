@@ -73,11 +73,19 @@ export class ParallelController {
    * 3. Wait for ALL constraints to be satisfied (Promise.all)
    * 4. Loop retry (another task might have taken the slot)
    *
-   * This prevents race conditions and stack overflow from recursion.
+   * Race condition safety:
+   * JavaScript's event loop ensures this code executes atomically within a single
+   * task (microtask queue). The check-then-act pattern (lines 81-86) is safe because:
+   * - No await between condition check and acquireSlot()
+   * - Synchronous code runs without interruption
+   * - Other async tasks cannot interleave until we yield with await
+   *
+   * After await (line 107), another task might have taken the slot, hence the
+   * while loop retries. This is not a race condition but intentional retry logic.
    */
   private async waitAndAcquireSlot(domain: string): Promise<void> {
     while (true) {
-      // Try immediate acquisition
+      // Try immediate acquisition (atomic: no await between check and acquire)
       if (
         this.globalActiveCount < this.GLOBAL_LIMIT &&
         (this.domainCounts.get(domain) ?? 0) < this.DOMAIN_LIMIT
@@ -184,7 +192,7 @@ export class ParallelController {
       // blob.type can be empty string for unknown types, use || operator
       const contentType = blob.type || 'image/unknown'
 
-      // Calculate hash (using crypto API - will implement in hasher.ts)
+      // Calculate SHA-256 hash using Web Crypto API
       const hash = await this.calculateHash(blob)
 
       return {
@@ -225,7 +233,15 @@ export class ParallelController {
    */
   private async fetchDataUrl(candidate: ImageCandidate): Promise<FetchResult> {
     try {
-      // Parse data URL manually for better control
+      // Validate data URL format first
+      if (!candidate.url.match(/^data:image\/[a-z]+;base64,/i)) {
+        return {
+          candidate,
+          error: 'HTTP_ERROR',
+          message: 'Invalid data URL format',
+        }
+      }
+
       const response = await fetch(candidate.url)
       const blob = await response.blob()
 
@@ -233,7 +249,7 @@ export class ParallelController {
       if (!blob || blob.size === 0) {
         return {
           candidate,
-          error: 'UNKNOWN',
+          error: 'HTTP_ERROR',
           message: 'Empty data URL blob',
         }
       }
@@ -249,6 +265,14 @@ export class ParallelController {
         contentType,
       }
     } catch (err) {
+      // More specific error handling for data URLs
+      if (err instanceof TypeError) {
+        return {
+          candidate,
+          error: 'HTTP_ERROR',
+          message: 'Malformed data URL',
+        }
+      }
       return {
         candidate,
         error: 'UNKNOWN',
