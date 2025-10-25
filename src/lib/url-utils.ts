@@ -188,3 +188,21 @@ export const makeRecordId = async (url: string): Promise<string> => {
     return ''
   }
 }
+
+/**
+ * recordIdからqueryHashを抽出します
+ *
+ * @param recordId - makeRecordIdで生成されたレコードID
+ * @returns queryHash（存在しない場合は空文字列）
+ *
+ * @example
+ * extractQueryHashFromRecordId('https://example.com/product:abc123')
+ * // => 'abc123'
+ *
+ * extractQueryHashFromRecordId('https://example.com/product')
+ * // => ''
+ */
+export const extractQueryHashFromRecordId = (recordId: string): string => {
+  const parts = recordId.split(':')
+  return parts.length > 1 ? parts[1] ?? '' : ''
+}

@@ -9,7 +9,7 @@
 
 import type { ImageSnapshot } from '../shared/types'
 import { getRecord, saveRecord, cleanupOldRecords as dbCleanupOldRecords } from '../lib/db'
-import { makeRecordId } from '../lib/url-utils'
+import { makeRecordId, extractQueryHashFromRecordId } from '../lib/url-utils'
 import { hashBlob } from '../lib/hasher'
 
 /**
@@ -58,6 +58,7 @@ export const computeDiff = async (
   currentImages: ImageWithData[]
 ): Promise<DiffResult> => {
   const recordId = await makeRecordId(url)
+  const now = Date.now() // 同一スキャンセッション内では同じタイムスタンプを使用
 
   // recordIdが空の場合は無効なURLとして扱う
   if (!recordId) {
@@ -84,7 +85,7 @@ export const computeDiff = async (
           height: img.height,
           alt: img.alt,
           context: img.context,
-          firstSeenAt: Date.now(),
+          firstSeenAt: now,
         } satisfies ImageSnapshot
       })
     )
@@ -100,34 +101,38 @@ export const computeDiff = async (
   const existingHashes = new Set(existingRecord.images.map((img) => img.hash))
 
   // 現在の画像を分類（新規 or 既存）
-  const newImages: ImageSnapshot[] = []
-  const existingImages: ImageSnapshot[] = []
-
-  await Promise.all(
+  // Promise.allでmap-filter方式を使用し、配列pushの競合を回避
+  const results = await Promise.all(
     currentImages.map(async (img) => {
       const hash = await hashBlob(img.blob)
+      const isExisting = existingHashes.has(hash)
 
-      // ハッシュで既存画像かチェック
-      if (existingHashes.has(hash)) {
-        // 既存画像の場合、既存レコードから情報を取得
+      if (isExisting) {
         const existingSnapshot = existingRecord.images.find((e) => e.hash === hash)
-        if (existingSnapshot) {
-          existingImages.push(existingSnapshot)
-        }
+        return { type: 'existing' as const, snapshot: existingSnapshot }
       } else {
-        // 新規画像の場合
-        newImages.push({
-          hash,
-          url: img.url,
-          width: img.width,
-          height: img.height,
-          alt: img.alt,
-          context: img.context,
-          firstSeenAt: Date.now(),
-        })
+        return {
+          type: 'new' as const,
+          snapshot: {
+            hash,
+            url: img.url,
+            width: img.width,
+            height: img.height,
+            alt: img.alt,
+            context: img.context,
+            firstSeenAt: now,
+          } satisfies ImageSnapshot,
+        }
       }
     })
   )
+
+  const newImages = results
+    .filter((r) => r.type === 'new' && r.snapshot)
+    .map((r) => r.snapshot as ImageSnapshot)
+  const existingImages = results
+    .filter((r) => r.type === 'existing' && r.snapshot)
+    .map((r) => r.snapshot as ImageSnapshot)
 
   return {
     newImages,
@@ -160,7 +165,16 @@ export const updateRecord = async (url: string, newImages: ImageSnapshot[]): Pro
     return
   }
 
-  const urlObj = new URL(url)
+  let urlObj: URL
+  try {
+    urlObj = new URL(url)
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.debug('[updateRecord] Invalid URL:', url, error)
+    }
+    return
+  }
+
   const existingRecord = await getRecord(recordId)
 
   if (existingRecord) {
@@ -178,7 +192,7 @@ export const updateRecord = async (url: string, newImages: ImageSnapshot[]): Pro
       url,
       origin: urlObj.origin,
       pathname: urlObj.pathname,
-      queryHash: recordId.split(':')[1] ?? '',
+      queryHash: extractQueryHashFromRecordId(recordId),
       domain: urlObj.hostname,
       lastScanAt: Date.now(),
       images: newImages,
