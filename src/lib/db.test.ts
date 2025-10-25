@@ -29,27 +29,43 @@ describe('db', () => {
   describe('openDiffSnapDB', () => {
     it('データベースを開けること', async () => {
       const db = await openDiffSnapDB()
-      expect(db.name).toBe('DiffSnapDB')
-      expect(db.version).toBe(1)
+      try {
+        expect(db.name).toBe('DiffSnapDB')
+        expect(db.version).toBe(1)
+      } finally {
+        db.close()
+      }
     })
 
     it('recordsストアが存在すること', async () => {
       const db = await openDiffSnapDB()
-      expect(db.objectStoreNames.contains('records')).toBe(true)
+      try {
+        expect(db.objectStoreNames.contains('records')).toBe(true)
+      } finally {
+        db.close()
+      }
     })
 
     it('domainインデックスが存在すること', async () => {
       const db = await openDiffSnapDB()
-      const tx = db.transaction('records', 'readonly')
-      const store = tx.objectStore('records')
-      expect(store.indexNames.contains('domain')).toBe(true)
+      try {
+        const tx = db.transaction('records', 'readonly')
+        const store = tx.objectStore('records')
+        expect(store.indexNames.contains('domain')).toBe(true)
+      } finally {
+        db.close()
+      }
     })
 
     it('lastScanAtインデックスが存在すること', async () => {
       const db = await openDiffSnapDB()
-      const tx = db.transaction('records', 'readonly')
-      const store = tx.objectStore('records')
-      expect(store.indexNames.contains('lastScanAt')).toBe(true)
+      try {
+        const tx = db.transaction('records', 'readonly')
+        const store = tx.objectStore('records')
+        expect(store.indexNames.contains('lastScanAt')).toBe(true)
+      } finally {
+        db.close()
+      }
     })
   })
 
