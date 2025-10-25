@@ -1,11 +1,7 @@
 import { AlertCircle } from 'lucide-react'
+import type { FailedImage } from '@/shared/types'
 
 export type ProgressStatus = 'detecting' | 'fetching' | 'creating-zip' | 'complete' | 'error'
-
-interface FailedImage {
-  url: string
-  reason: string
-}
 
 interface ProgressBarProps {
   status: ProgressStatus
@@ -96,8 +92,8 @@ export const ProgressBar = ({
                     >
                       {truncateUrl(failed.url)}
                     </p>
-                    <p className="text-red-600 mt-1" aria-label={`エラー理由: ${failed.reason}`}>
-                      {failed.reason}
+                    <p className="text-red-600 mt-1" aria-label={`エラー理由: ${failed.error}`}>
+                      {failed.error}
                     </p>
                   </div>
                   {onRetry && (
