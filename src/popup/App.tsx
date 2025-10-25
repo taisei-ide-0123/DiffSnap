@@ -1,11 +1,25 @@
+import { Header } from './components/Header'
+import { Footer } from './components/Footer'
+
 export const App = () => {
+  const handleDownload = () => {
+    console.log('Download clicked')
+  }
+
   return (
-    <div className="w-[400px] h-[600px] p-4 bg-gray-50">
-      <h1 className="text-2xl font-bold text-primary-600 mb-4">DiffSnap</h1>
-      <p className="text-gray-700">画像差分監視・収集 Chrome拡張機能</p>
-      <div className="mt-4 p-4 bg-white rounded-lg shadow">
-        <p className="text-sm text-gray-600">開発中...</p>
-      </div>
+    <div className="w-96 h-[600px] flex flex-col bg-gray-50">
+      <Header imageCount={0} tier="Free" />
+
+      <main className="flex-1 overflow-y-auto p-4">
+        <div className="text-center py-12">
+          <p className="text-gray-600 mb-2">画像を検出中...</p>
+          <p className="text-sm text-gray-500">
+            このページの画像が自動的に検出されます
+          </p>
+        </div>
+      </main>
+
+      <Footer onDownload={handleDownload} isDownloading={false} />
     </div>
   )
 }
