@@ -6,7 +6,13 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { handleMessage, sendStateUpdate, sendDiffResult, sendZipReady } from './message-router'
+import {
+  handleMessage,
+  sendStateUpdate,
+  sendDiffResult,
+  sendZipReady,
+  sendToContent,
+} from './message-router'
 import type {
   ImagesDetectedMessage,
   ScrollCompleteMessage,
@@ -212,9 +218,12 @@ describe('Message Router', () => {
 
   describe('Helper Functions', () => {
     beforeEach(() => {
-      // chrome.runtime.sendMessageをモック
+      // chrome.runtime.sendMessageとchrome.tabs.sendMessageをモック
       global.chrome = {
         runtime: {
+          sendMessage: vi.fn().mockResolvedValue(undefined),
+        },
+        tabs: {
           sendMessage: vi.fn().mockResolvedValue(undefined),
         },
       } as unknown as typeof chrome
@@ -308,6 +317,50 @@ describe('Message Router', () => {
           type: 'ZIP_READY',
           downloadId,
         })
+      })
+    })
+
+    describe('sendToContent', () => {
+      it('should send message to content script', async () => {
+        const tabId = 123
+        const message = {
+          type: 'START_SCROLL' as const,
+          options: {
+            maxDepth: 20,
+            timeout: 15000,
+          },
+        }
+
+        await sendToContent(tabId, message)
+
+        expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(tabId, message)
+      })
+
+      it('should throw error when message sending fails', async () => {
+        const error = new Error('Tab not found')
+        vi.mocked(chrome.tabs.sendMessage).mockRejectedValue(error)
+
+        const tabId = 999
+        const message = {
+          type: 'START_SCROLL' as const,
+        }
+
+        await expect(sendToContent(tabId, message)).rejects.toThrow('Tab not found')
+      })
+
+      it('should log message type and tabId', async () => {
+        const consoleLogSpy = vi.spyOn(console, 'log')
+        const tabId = 456
+        const message = {
+          type: 'START_SCROLL' as const,
+        }
+
+        await sendToContent(tabId, message)
+
+        expect(consoleLogSpy).toHaveBeenCalledWith(
+          'Message sent to content script:',
+          { tabId, type: 'START_SCROLL' }
+        )
       })
     })
   })

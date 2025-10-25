@@ -14,6 +14,7 @@ import type {
   ContentToBackgroundMessage,
   PopupToBackgroundMessage,
   BackgroundToPopupMessage,
+  BackgroundToContentMessage,
   RunState,
   ImageSnapshot,
 } from '../shared/types'
@@ -53,8 +54,10 @@ const handleContentMessage: MessageHandler<ContentToBackgroundMessage> = (
         message.candidates.length
       )
 
-      // TODO: Issue #13で収集オーケストレーター連携実装
-      // 現在は単純なACK応答のみ
+      // TODO(Issue #13): 収集オーケストレーター連携実装
+      //   - 受信したcandidatesをIndexedDBに保存
+      //   - collectorOrchestrator.start(tabId, candidates)を呼び出し
+      //   - 進捗をsendStateUpdate()で通知
       sendResponse({ status: 'OK', received: message.candidates.length })
       return true
     }
@@ -161,13 +164,28 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
  *
  * Content ScriptとPopupの両方からのメッセージを受け付け、
  * 適切なハンドラに振り分けます。
+ *
+ * @param message - メッセージオブジェクト
+ * @param sender - 送信元情報
+ * @param sendResponse - レスポンス送信関数
+ * @returns 非同期チャネルを使用する場合はtrue
+ *
+ * @example
+ * chrome.runtime.onMessage.addListener((msg, sender, respond) => {
+ *   return handleMessage(msg, sender, respond)
+ * })
  */
 export const handleMessage = (
   message: ContentToBackgroundMessage | PopupToBackgroundMessage | { type: 'PING' },
   sender: chrome.runtime.MessageSender,
   sendResponse: (response?: unknown) => void
 ): boolean => {
-  console.log('Background received message:', message.type, 'from:', sender.tab?.id ?? 'popup')
+  const senderInfo = sender.tab?.id
+    ? `tab:${sender.tab.id}`
+    : sender.url?.includes('popup.html')
+      ? 'popup'
+      : 'unknown'
+  console.log('Background received message:', message.type, 'from:', senderInfo)
 
   // PINGメッセージ（接続確認用）
   if (message.type === 'PING') {
@@ -182,7 +200,9 @@ export const handleMessage = (
     message.type === 'SCROLL_TIMEOUT' ||
     message.type === 'DETECTION_ERROR'
   ) {
-    return handleContentMessage(message as ContentToBackgroundMessage, sender, sendResponse) ?? true
+    return (
+      handleContentMessage(message as ContentToBackgroundMessage, sender, sendResponse) ?? true
+    )
   }
 
   // Popupからのメッセージ
@@ -191,7 +211,9 @@ export const handleMessage = (
     message.type === 'RETRY_FAILED' ||
     message.type === 'CHECK_DIFF'
   ) {
-    return handlePopupMessage(message as PopupToBackgroundMessage, sender, sendResponse) ?? true
+    return (
+      handlePopupMessage(message as PopupToBackgroundMessage, sender, sendResponse) ?? true
+    )
   }
 
   // 未知のメッセージタイプ
@@ -206,6 +228,11 @@ export const handleMessage = (
 
 /**
  * STATE_UPDATEメッセージをPopupに送信
+ *
+ * @param state - 送信する実行状態
+ *
+ * @example
+ * await sendStateUpdate({ status: 'collecting', progress: 50 })
  */
 export const sendStateUpdate = async (state: RunState): Promise<void> => {
   const message: BackgroundToPopupMessage = {
@@ -218,7 +245,8 @@ export const sendStateUpdate = async (state: RunState): Promise<void> => {
     console.log('STATE_UPDATE sent to popup:', state.status)
   } catch (error) {
     // Popupが開いていない場合はエラーになるが、無視して良い
-    if ((error as Error).message?.includes('Receiving end does not exist')) {
+    const isPopupClosed = (error as Error).message?.includes('Receiving end does not exist')
+    if (isPopupClosed) {
       // Popup未起動時は正常（エラーログ不要）
       return
     }
@@ -228,6 +256,13 @@ export const sendStateUpdate = async (state: RunState): Promise<void> => {
 
 /**
  * DIFF_RESULTメッセージをPopupに送信
+ *
+ * @param newImages - 新規に検出された画像のスナップショット
+ * @param existingImages - 既存の画像スナップショット
+ * @param isFirstVisit - 初回訪問かどうか
+ *
+ * @example
+ * await sendDiffResult([newImage1, newImage2], [existingImage1], false)
  */
 export const sendDiffResult = async (
   newImages: ImageSnapshot[],
@@ -249,7 +284,8 @@ export const sendDiffResult = async (
       isFirstVisit,
     })
   } catch (error) {
-    if ((error as Error).message?.includes('Receiving end does not exist')) {
+    const isPopupClosed = (error as Error).message?.includes('Receiving end does not exist')
+    if (isPopupClosed) {
       return
     }
     console.error('Failed to send DIFF_RESULT:', error)
@@ -258,6 +294,11 @@ export const sendDiffResult = async (
 
 /**
  * ZIP_READYメッセージをPopupに送信
+ *
+ * @param downloadId - ChromeダウンロードID
+ *
+ * @example
+ * await sendZipReady(12345)
  */
 export const sendZipReady = async (downloadId: number): Promise<void> => {
   const message: BackgroundToPopupMessage = {
@@ -269,7 +310,8 @@ export const sendZipReady = async (downloadId: number): Promise<void> => {
     await chrome.runtime.sendMessage(message)
     console.log('ZIP_READY sent to popup, downloadId:', downloadId)
   } catch (error) {
-    if ((error as Error).message?.includes('Receiving end does not exist')) {
+    const isPopupClosed = (error as Error).message?.includes('Receiving end does not exist')
+    if (isPopupClosed) {
       return
     }
     console.error('Failed to send ZIP_READY:', error)
@@ -278,11 +320,21 @@ export const sendZipReady = async (downloadId: number): Promise<void> => {
 
 /**
  * Content Scriptへメッセージを送信
+ *
+ * @param tabId - 送信先のタブID
+ * @param message - 送信するメッセージ（BackgroundToContentMessage型）
+ * @throws メッセージ送信に失敗した場合
+ *
+ * @example
+ * await sendToContent(123, { type: 'START_SCROLL', options: { maxDepth: 20 } })
  */
-export const sendToContent = async <T>(tabId: number, message: T): Promise<void> => {
+export const sendToContent = async (
+  tabId: number,
+  message: BackgroundToContentMessage
+): Promise<void> => {
   try {
     await chrome.tabs.sendMessage(tabId, message)
-    console.log('Message sent to content script:', { tabId, type: (message as { type: string }).type })
+    console.log('Message sent to content script:', { tabId, type: message.type })
   } catch (error) {
     console.error('Failed to send message to content script:', error)
     throw error
