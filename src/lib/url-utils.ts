@@ -188,3 +188,40 @@ export const makeRecordId = async (url: string): Promise<string> => {
     return ''
   }
 }
+
+/**
+ * recordIdからqueryHashを抽出します
+ *
+ * recordIdは `${origin}${pathname}:${queryHash}` 形式です。
+ * プロトコル部分のコロン（http:, https:）は含まれません。
+ *
+ * @param recordId - makeRecordIdで生成されたレコードID
+ * @returns queryHash（存在しない場合は空文字列）
+ *
+ * @example
+ * // 正常ケース
+ * extractQueryHashFromRecordId('https://example.com/product:abc123')
+ * // => 'abc123'
+ *
+ * // queryHashなし
+ * extractQueryHashFromRecordId('https://example.com/product')
+ * // => ''
+ *
+ * @note recordIdのフォーマットはmakeRecordId関数で生成されます
+ * @see makeRecordId
+ */
+export const extractQueryHashFromRecordId = (recordId: string): string => {
+  // 最後のコロン以降を返す（http://やhttps://のコロンを除外）
+  const lastColonIndex = recordId.lastIndexOf(':')
+  if (lastColonIndex === -1) {
+    return ''
+  }
+
+  // プロトコル部分のコロンかチェック（http: または https:）
+  const beforeColon = recordId.substring(0, lastColonIndex)
+  if (beforeColon === 'http' || beforeColon === 'https') {
+    return ''
+  }
+
+  return recordId.substring(lastColonIndex + 1)
+}
