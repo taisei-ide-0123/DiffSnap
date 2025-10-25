@@ -31,6 +31,6 @@
     /* Chrome Extension Types */
     "types": ["chrome", "vite/client"]
   },
-  "include": ["src", "tests"],
+  "include": ["src", "tests", "vitest.setup.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

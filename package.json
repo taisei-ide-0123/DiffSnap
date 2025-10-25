@@ -36,6 +36,9 @@
   "devDependencies": {
     "@eslint/compat": "^1.4.0",
     "@eslint/js": "^9.38.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/chrome": "^0.0.262",
     "@types/jsdom": "^27.0.0",
     "@types/react": "^18.2.56",
