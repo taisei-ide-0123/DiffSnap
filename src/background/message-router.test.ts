@@ -13,6 +13,7 @@ import {
   sendZipReady,
   sendToContent,
 } from './message-router'
+import type { RunState } from '../shared/types'
 import type {
   ImagesDetectedMessage,
   ScrollCompleteMessage,
@@ -231,9 +232,13 @@ describe('Message Router', () => {
 
     describe('sendStateUpdate', () => {
       it('should send STATE_UPDATE message', async () => {
-        const state = {
-          status: 'collecting' as const,
-          progress: 50,
+        const state: RunState = {
+          tabId: 1,
+          status: 'fetching' as const,
+          total: 100,
+          completed: 50,
+          failed: [],
+          zipSize: 0,
         }
 
         await sendStateUpdate(state)
@@ -248,8 +253,13 @@ describe('Message Router', () => {
         const error = new Error('Receiving end does not exist')
         vi.mocked(chrome.runtime.sendMessage).mockRejectedValue(error)
 
-        const state = {
+        const state: RunState = {
+          tabId: 1,
           status: 'idle' as const,
+          total: 0,
+          completed: 0,
+          failed: [],
+          zipSize: 0,
         }
 
         // エラーをスローせずに完了すべき
@@ -261,9 +271,13 @@ describe('Message Router', () => {
         vi.mocked(chrome.runtime.sendMessage).mockRejectedValue(error)
         const consoleErrorSpy = vi.spyOn(console, 'error')
 
-        const state = {
+        const state: RunState = {
+          tabId: 1,
           status: 'error' as const,
-          error: 'Test error',
+          total: 0,
+          completed: 0,
+          failed: [],
+          zipSize: 0,
         }
 
         await sendStateUpdate(state)

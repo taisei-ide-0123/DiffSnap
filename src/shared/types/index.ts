@@ -117,11 +117,15 @@ export interface CollectionOptions {
   scrollTimeout: number // デフォルト15000ms
 }
 
-// 実行状態（仮定義）
+// 実行状態
+// data-models.md:90-101 準拠
 export interface RunState {
-  status: 'idle' | 'detecting' | 'collecting' | 'completed' | 'error'
-  progress?: number
-  error?: string
+  tabId: number
+  status: 'idle' | 'detecting' | 'fetching' | 'zipping' | 'complete' | 'error'
+  total: number // 検出画像総数
+  completed: number // fetch完了数
+  failed: FailedImage[] // 失敗リスト
+  zipSize: number // 累積ZIPサイズ（バイト）
 }
 
 // 画像スナップショット（差分台帳用）
