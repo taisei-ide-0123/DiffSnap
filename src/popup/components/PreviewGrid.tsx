@@ -1,15 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
+import type { ImageCandidate } from '@/shared/types'
 
-interface ImageData {
-  url: string
-  width?: number
-  height?: number
-  alt?: string
-  isNew?: boolean
+// PreviewGrid用の表示型を定義（既存型を拡張）
+interface PreviewImageData extends Pick<ImageCandidate, 'url' | 'width' | 'height' | 'alt'> {
+  isNew?: boolean // Pro機能用: 差分検出時の新規画像マーカー
 }
 
 interface PreviewGridProps {
-  images: ImageData[]
+  images: PreviewImageData[]
   maxDisplay?: number
 }
 
@@ -21,7 +19,10 @@ export const PreviewGrid = ({
   const observerRef = useRef<IntersectionObserver | null>(null)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
 
-  const displayImages = images.slice(0, Math.min(images.length, maxDisplay))
+  const displayImages = useMemo(
+    () => images.slice(0, Math.min(images.length, maxDisplay)),
+    [images, maxDisplay]
+  )
   const visibleImages = displayImages.slice(0, visibleCount)
 
   useEffect(() => {
@@ -46,7 +47,7 @@ export const PreviewGrid = ({
     return () => {
       observerRef.current?.disconnect()
     }
-  }, [visibleCount, displayImages.length])
+  }, [visibleCount, displayImages])
 
   return (
     <div className="w-full">
