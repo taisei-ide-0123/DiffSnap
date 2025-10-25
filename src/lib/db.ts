@@ -45,7 +45,11 @@ export const openDiffSnapDB = async (): Promise<IDBPDatabase<DiffSnapDB>> => {
  */
 export const getRecord = async (recordId: string): Promise<DiffRecord | undefined> => {
   const db = await openDiffSnapDB()
-  return db.get(STORE_NAME, recordId)
+  try {
+    return await db.get(STORE_NAME, recordId)
+  } finally {
+    db.close()
+  }
 }
 
 /**
@@ -53,7 +57,11 @@ export const getRecord = async (recordId: string): Promise<DiffRecord | undefine
  */
 export const saveRecord = async (record: DiffRecord): Promise<void> => {
   const db = await openDiffSnapDB()
-  await db.put(STORE_NAME, record)
+  try {
+    await db.put(STORE_NAME, record)
+  } finally {
+    db.close()
+  }
 }
 
 /**
@@ -61,7 +69,11 @@ export const saveRecord = async (record: DiffRecord): Promise<void> => {
  */
 export const deleteRecord = async (recordId: string): Promise<void> => {
   const db = await openDiffSnapDB()
-  await db.delete(STORE_NAME, recordId)
+  try {
+    await db.delete(STORE_NAME, recordId)
+  } finally {
+    db.close()
+  }
 }
 
 /**
@@ -69,7 +81,11 @@ export const deleteRecord = async (recordId: string): Promise<void> => {
  */
 export const getRecordsByDomain = async (domain: string): Promise<DiffRecord[]> => {
   const db = await openDiffSnapDB()
-  return db.getAllFromIndex(STORE_NAME, 'domain', domain)
+  try {
+    return await db.getAllFromIndex(STORE_NAME, 'domain', domain)
+  } finally {
+    db.close()
+  }
 }
 
 /**
@@ -77,20 +93,21 @@ export const getRecordsByDomain = async (domain: string): Promise<DiffRecord[]> 
  */
 export const cleanupOldRecords = async (daysOld = 90): Promise<number> => {
   const db = await openDiffSnapDB()
-  const cutoffTime = Date.now() - daysOld * 24 * 60 * 60 * 1000
+  try {
+    const cutoffTime = Date.now() - daysOld * 24 * 60 * 60 * 1000
 
-  const tx = db.transaction(STORE_NAME, 'readwrite')
-  const index = tx.store.index('lastScanAt')
-  const oldRecords = await index.getAll(IDBKeyRange.upperBound(cutoffTime))
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    const index = tx.store.index('lastScanAt')
+    const oldRecords = await index.getAll(IDBKeyRange.upperBound(cutoffTime))
 
-  let deletedCount = 0
-  for (const record of oldRecords) {
-    await tx.store.delete(record.id)
-    deletedCount++
+    // 並列削除でパフォーマンス向上
+    await Promise.all(oldRecords.map((record) => tx.store.delete(record.id)))
+
+    await tx.done
+    return oldRecords.length
+  } finally {
+    db.close()
   }
-
-  await tx.done
-  return deletedCount
 }
 
 /**
@@ -98,7 +115,11 @@ export const cleanupOldRecords = async (daysOld = 90): Promise<number> => {
  */
 export const getAllRecords = async (): Promise<DiffRecord[]> => {
   const db = await openDiffSnapDB()
-  return db.getAll(STORE_NAME)
+  try {
+    return await db.getAll(STORE_NAME)
+  } finally {
+    db.close()
+  }
 }
 
 /**
@@ -106,5 +127,9 @@ export const getAllRecords = async (): Promise<DiffRecord[]> => {
  */
 export const clearDatabase = async (): Promise<void> => {
   const db = await openDiffSnapDB()
-  await db.clear(STORE_NAME)
+  try {
+    await db.clear(STORE_NAME)
+  } finally {
+    db.close()
+  }
 }
