@@ -60,7 +60,8 @@ describe('ImageCollector', () => {
       expect(result.stats.failed).toBe(1)
       expect(result.images).toHaveLength(1)
       expect(result.failed).toHaveLength(1)
-      expect(result.failed[0]?.error).toBe('HTTP_ERROR')
+      expect(result.failed[0]?.errorType).toBe('HTTP_ERROR')
+      expect(result.failed[0]?.source).toBe('img')
     })
   })
 
@@ -338,7 +339,8 @@ describe('ImageCollector', () => {
       const result = await collector.collect(candidates)
 
       expect(result.stats.failed).toBe(1)
-      expect(result.failed[0]?.error).toBe('TIMEOUT')
+      expect(result.failed[0]?.errorType).toBe('TIMEOUT')
+      expect(result.failed[0]?.source).toBe('img')
     })
 
     it('should handle CORS errors', async () => {
@@ -353,7 +355,8 @@ describe('ImageCollector', () => {
       const result = await collector.collect(candidates)
 
       expect(result.stats.failed).toBe(1)
-      expect(result.failed[0]?.error).toBe('CORS')
+      expect(result.failed[0]?.errorType).toBe('CORS')
+      expect(result.failed[0]?.source).toBe('img')
     })
 
     it('should handle empty result gracefully', async () => {

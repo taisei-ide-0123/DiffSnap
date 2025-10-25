@@ -160,6 +160,10 @@ export interface FailedImage {
   error: string
   errorType: ErrorType
   retryCount: number
+  source: ImageSource // 元の画像ソースタイプを保持
+  width?: number // 画像サイズ（あれば）
+  height?: number
+  alt?: string // 代替テキスト（あれば）
 }
 
 export interface ProcessingCheckpoint {

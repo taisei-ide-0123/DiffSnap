@@ -160,12 +160,14 @@ describe('Message Router', () => {
             error: 'CORS error',
             errorType: 'CORS',
             retryCount: 0,
+            source: 'img',
           },
           {
             url: 'https://example.com/image2.jpg',
             error: 'Timeout',
             errorType: 'TIMEOUT',
             retryCount: 0,
+            source: 'img',
           },
         ],
       }
