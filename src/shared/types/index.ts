@@ -175,3 +175,35 @@ export interface ProcessingCheckpoint {
   lastCheckpointAt: number
   phase: 'fetching' | 'zipping'
 }
+
+// IndexedDB: DiffSnapDB データ型定義
+// data-models.md:19-29 準拠
+export interface DiffRecord {
+  id: string // makeRecordId(url)の戻り値: "${origin}${pathname}:${queryHash}"
+  url: string // 完全URL（クエリ含む）
+  origin: string // https://example.com
+  pathname: string // /products/item
+  queryHash: string // SHA-256(sortedQueryString)の32桁（128ビット）
+  domain: string // example.com
+  lastScanAt: number // Date.now() タイムスタンプ
+  images: ImageSnapshot[] // 検出済み画像の配列
+}
+
+// chrome.storage.sync: 設定データ型定義
+// data-models.md:64-70 準拠
+export interface DomainProfile {
+  domain: string // "example.com"
+  includePattern?: string // 正規表現文字列（空なら全許可）
+  excludePattern?: string // 正規表現文字列（空なら除外なし）
+  minWidth?: number // 最小幅ピクセル（未指定なら0）
+}
+
+// data-models.md:55-62 準拠
+export interface UserConfig {
+  tier: 'free' | 'pro'
+  licenseKey?: string // Pro購入時のライセンスキー
+  namingTemplate: string // デフォルト: "{date}-{domain}-{w}x{h}-{index}"
+  domainProfiles: DomainProfile[]
+  monthlyCount: number // Free制限用カウンタ
+  monthlyResetAt: number // 次回リセット日時（Unixタイムスタンプ）
+}
