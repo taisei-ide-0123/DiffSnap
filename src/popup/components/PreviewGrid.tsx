@@ -47,7 +47,7 @@ export const PreviewGrid = ({
     return () => {
       observerRef.current?.disconnect()
     }
-  }, [visibleCount, displayImages])
+  }, [visibleCount, displayImages.length])
 
   return (
     <div className="w-full">
@@ -79,7 +79,7 @@ export const PreviewGrid = ({
 }
 
 interface PreviewCardProps {
-  image: ImageData
+  image: PreviewImageData
 }
 
 const PreviewCard = ({ image }: PreviewCardProps) => {
