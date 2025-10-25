@@ -1,5 +1,9 @@
 import { create } from 'zustand'
-import type { RunState, ImageCandidate } from '../../shared/types'
+import type {
+  RunState,
+  ImageCandidate,
+  BackgroundToPopupMessage,
+} from '../../shared/types'
 
 // Popup専用のストア状態
 interface PopupState extends RunState {
@@ -113,10 +117,21 @@ const validateStatusTransition = (
   return transitions[from]?.includes(to) ?? false
 }
 
-// Backgroundからのメッセージリスナーをセットアップ
-// Popup起動時にこの関数を呼び出す
+/**
+ * Backgroundからのメッセージリスナーをセットアップ
+ * Popup起動時にこの関数を呼び出す
+ *
+ * @returns クリーンアップ関数（useEffectのreturnで呼び出す）
+ *
+ * 状態遷移図:
+ * idle → detecting → fetching → zipping → complete → idle
+ *         ↓          ↓          ↓
+ *         error ←----←----------←
+ *         ↓
+ *         idle (retry)
+ */
 export const setupBackgroundListener = () => {
-  chrome.runtime.onMessage.addListener((message) => {
+  const listener = (message: BackgroundToPopupMessage) => {
     const store = usePopupStore.getState()
 
     switch (message.type) {
@@ -133,5 +148,10 @@ export const setupBackgroundListener = () => {
         console.log('ZIP ready:', message.downloadId)
         break
     }
-  })
+  }
+
+  chrome.runtime.onMessage.addListener(listener)
+
+  // クリーンアップ関数を返す（メモリリーク防止）
+  return () => chrome.runtime.onMessage.removeListener(listener)
 }

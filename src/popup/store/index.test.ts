@@ -291,7 +291,8 @@ describe('Popup Store', () => {
       usePopupStore.getState().updateProgress({ status: 'zipping' })
       usePopupStore.getState().updateProgress({ status: 'complete' })
 
-      // complete -> idle は reset() を使うのが推奨だが、updateProgressでも可能
+      // reset()を使うと全フィールドが初期化されるため通常は推奨だが、
+      // 状態遷移としてcomplete -> idleも許可されている
       usePopupStore.getState().updateProgress({ status: 'idle' })
       expect(usePopupStore.getState().status).toBe('idle')
     })

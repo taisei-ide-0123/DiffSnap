@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Header } from './components/Header'
 import { Footer } from './components/Footer'
 import { PreviewGrid } from './components/PreviewGrid'
-import { ProgressBar } from './components/ProgressBar'
+import { ProgressBar, type ProgressStatus } from './components/ProgressBar'
 import { usePopupStore, setupBackgroundListener } from './store'
 
 export const App = () => {
@@ -14,7 +14,9 @@ export const App = () => {
 
   useEffect(() => {
     // Backgroundからのメッセージリスナーをセットアップ
-    setupBackgroundListener()
+    const cleanup = setupBackgroundListener()
+    // コンポーネントのアンマウント時にリスナーを削除（メモリリーク防止）
+    return cleanup
   }, [])
 
   const handleDownload = () => {
@@ -42,7 +44,7 @@ export const App = () => {
   const isDownloading = ['detecting', 'fetching', 'zipping'].includes(status)
 
   // ProgressBarコンポーネント用にstatusを変換
-  const getProgressBarStatus = (): import('./components/ProgressBar').ProgressStatus => {
+  const getProgressBarStatus = (): ProgressStatus => {
     switch (status) {
       case 'detecting':
         return 'detecting'
