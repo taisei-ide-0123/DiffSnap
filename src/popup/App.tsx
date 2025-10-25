@@ -9,6 +9,7 @@ export const App = () => {
   const status = usePopupStore((state) => state.status)
   const total = usePopupStore((state) => state.total)
   const completed = usePopupStore((state) => state.completed)
+  const failed = usePopupStore((state) => state.failed)
   const candidates = usePopupStore((state) => state.candidates)
   const errorMessage = usePopupStore((state) => state.errorMessage)
   const reset = usePopupStore((state) => state.reset)
@@ -23,6 +24,25 @@ export const App = () => {
   const handleDownload = () => {
     // TODO: Implement download logic
     // chrome.runtime.sendMessage({ type: 'START_COLLECTION', ... })
+  }
+
+  const handleRetry = (url: string) => {
+    // 単一URLの再試行
+    chrome.runtime.sendMessage({
+      type: 'RETRY_FAILED',
+      urls: [url],
+    })
+  }
+
+  const handleRetryAll = () => {
+    // 全失敗画像の再試行
+    const failedUrls = failed.map((f) => f.url)
+    if (failedUrls.length > 0) {
+      chrome.runtime.sendMessage({
+        type: 'RETRY_FAILED',
+        urls: failedUrls,
+      })
+    }
   }
 
   const getStatusMessage = () => {
@@ -79,6 +99,9 @@ export const App = () => {
               status={getProgressBarStatus()}
               current={completed}
               total={total}
+              failedImages={failed}
+              onRetry={handleRetry}
+              onRetryAll={handleRetryAll}
             />
             <div className="text-center">
               <p className="text-gray-600 mb-1">{getStatusMessage()}</p>

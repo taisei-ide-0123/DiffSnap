@@ -212,6 +212,22 @@ export class ImageCollector {
   }
 
   /**
+   * Retry failed image fetches
+   *
+   * @param failedUrls - URLs of images that failed to fetch
+   * @returns Collection result for retry attempt
+   */
+  async retryFailed(failedUrls: string[]): Promise<CollectionResult> {
+    // Convert URLs to ImageCandidate objects
+    const candidates: ImageCandidate[] = failedUrls.map((url) => ({
+      url,
+      source: 'img' as const,
+    }))
+
+    return this.collect(candidates)
+  }
+
+  /**
    * Reset collector state (for testing)
    */
   reset() {

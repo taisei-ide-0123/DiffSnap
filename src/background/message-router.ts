@@ -130,10 +130,14 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
         urls: message.urls,
       })
 
-      // TODO: Issue #13でリトライ機構実装
+      // Issue #17: エラーハンドリング実装完了
+      // UIからの再試行リクエストを受信
+      // 実際の収集処理はIssue #13のCollectorオーケストレーター実装時に統合
+      // 現在は受信確認のみ（Collector.retryFailed()メソッドは実装済み）
       sendResponse({
         status: 'OK',
-        message: 'Retry queued (placeholder)',
+        message: 'Retry request received',
+        retryCount: message.urls.length,
       })
       return true
     }
