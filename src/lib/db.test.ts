@@ -13,7 +13,7 @@ import {
   getAllRecords,
   clearDatabase,
 } from './db'
-import type { DiffRecord, ImageSnapshot } from './types'
+import type { DiffRecord, ImageSnapshot } from '../shared/types'
 
 describe('db', () => {
   beforeEach(async () => {

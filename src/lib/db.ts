@@ -4,7 +4,7 @@
  */
 
 import { openDB, type IDBPDatabase } from 'idb'
-import type { DiffRecord } from './types'
+import type { DiffRecord } from '../shared/types'
 
 const DB_NAME = 'DiffSnapDB'
 const DB_VERSION = 1
