@@ -60,7 +60,7 @@ describe('ImageCollector', () => {
       expect(result.stats.failed).toBe(1)
       expect(result.images).toHaveLength(1)
       expect(result.failed).toHaveLength(1)
-      expect(result.failed[0].error).toBe('HTTP_ERROR')
+      expect(result.failed[0]?.error).toBe('HTTP_ERROR')
     })
   })
 
@@ -117,7 +117,7 @@ describe('ImageCollector', () => {
       expect(result.images).toHaveLength(2)
 
       // Verify hashes are different
-      expect(result.images[0].hash).not.toBe(result.images[1].hash)
+      expect(result.images[0]?.hash).not.toBe(result.images[1]?.hash)
     })
   })
 
@@ -258,13 +258,13 @@ describe('ImageCollector', () => {
 
       expect(result.images).toHaveLength(1)
 
-      const snapshot = result.images[0].snapshot
-      expect(snapshot.url).toBe('https://example.com/test.jpg')
-      expect(snapshot.width).toBe(800)
-      expect(snapshot.height).toBe(600)
-      expect(snapshot.alt).toBe('Test image')
-      expect(snapshot.hash).toBeDefined()
-      expect(snapshot.firstSeenAt).toBeGreaterThan(0)
+      const snapshot = result.images[0]?.snapshot
+      expect(snapshot?.url).toBe('https://example.com/test.jpg')
+      expect(snapshot?.width).toBe(800)
+      expect(snapshot?.height).toBe(600)
+      expect(snapshot?.alt).toBe('Test image')
+      expect(snapshot?.hash).toBeDefined()
+      expect(snapshot?.firstSeenAt).toBeGreaterThan(0)
     })
 
     it('should handle missing dimensions gracefully', async () => {
@@ -284,9 +284,9 @@ describe('ImageCollector', () => {
 
       expect(result.images).toHaveLength(1)
 
-      const snapshot = result.images[0].snapshot
-      expect(snapshot.width).toBe(0)
-      expect(snapshot.height).toBe(0)
+      const snapshot = result.images[0]?.snapshot
+      expect(snapshot?.width).toBe(0)
+      expect(snapshot?.height).toBe(0)
     })
   })
 
@@ -338,7 +338,7 @@ describe('ImageCollector', () => {
       const result = await collector.collect(candidates)
 
       expect(result.stats.failed).toBe(1)
-      expect(result.failed[0].error).toBe('TIMEOUT')
+      expect(result.failed[0]?.error).toBe('TIMEOUT')
     })
 
     it('should handle CORS errors', async () => {
@@ -353,7 +353,7 @@ describe('ImageCollector', () => {
       const result = await collector.collect(candidates)
 
       expect(result.stats.failed).toBe(1)
-      expect(result.failed[0].error).toBe('CORS')
+      expect(result.failed[0]?.error).toBe('CORS')
     })
 
     it('should handle empty result gracefully', async () => {
