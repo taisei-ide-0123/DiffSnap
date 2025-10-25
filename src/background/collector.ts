@@ -72,9 +72,12 @@ export class ImageCollector {
       const message: StateUpdateMessage = {
         type: 'STATE_UPDATE',
         state: {
-          status: 'collecting',
-          progress:
-            progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0,
+          tabId: this.options.tabId,
+          status: 'fetching',
+          total: progress.total,
+          completed: progress.completed,
+          failed: [], // Collectorは失敗数のみ持つため、詳細はここでは空配列
+          zipSize: 0, // ZIP生成前なのでまだ0
         },
       }
 
