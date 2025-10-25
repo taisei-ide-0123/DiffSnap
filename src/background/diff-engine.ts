@@ -109,6 +109,25 @@ export const computeDiff = async (
 
       if (isExisting) {
         const existingSnapshot = existingRecord.images.find((e) => e.hash === hash)
+        if (!existingSnapshot) {
+          // 既存レコードにハッシュが存在するはずなのに見つからない（データ整合性エラー）
+          // 新規画像として扱う
+          if (import.meta.env.DEV) {
+            console.warn('[computeDiff] Hash found in Set but not in array:', hash)
+          }
+          return {
+            type: 'new' as const,
+            snapshot: {
+              hash,
+              url: img.url,
+              width: img.width,
+              height: img.height,
+              alt: img.alt,
+              context: img.context,
+              firstSeenAt: now,
+            } satisfies ImageSnapshot,
+          }
+        }
         return { type: 'existing' as const, snapshot: existingSnapshot }
       } else {
         return {
@@ -159,6 +178,7 @@ export const computeDiff = async (
  */
 export const updateRecord = async (url: string, newImages: ImageSnapshot[]): Promise<void> => {
   const recordId = await makeRecordId(url)
+  const now = Date.now() // 同一更新セッション内では同じタイムスタンプを使用
 
   // recordIdが空の場合は何もしない
   if (!recordId) {
@@ -181,7 +201,7 @@ export const updateRecord = async (url: string, newImages: ImageSnapshot[]): Pro
     // 既存レコードに新規画像を追加
     const updatedRecord = {
       ...existingRecord,
-      lastScanAt: Date.now(),
+      lastScanAt: now,
       images: [...existingRecord.images, ...newImages],
     }
     await saveRecord(updatedRecord)
@@ -194,7 +214,7 @@ export const updateRecord = async (url: string, newImages: ImageSnapshot[]): Pro
       pathname: urlObj.pathname,
       queryHash: extractQueryHashFromRecordId(recordId),
       domain: urlObj.hostname,
-      lastScanAt: Date.now(),
+      lastScanAt: now,
       images: newImages,
     })
   }
