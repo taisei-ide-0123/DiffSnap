@@ -76,7 +76,9 @@ export class ImageCollector {
           status: 'fetching',
           total: progress.total,
           completed: progress.completed,
-          failed: [], // Collectorは失敗数のみ持つため、詳細はここでは空配列
+          // TODO: 失敗詳細の伝播 - CollectionProgressがfailed: number型のみ持つため、
+          // 詳細情報を送信できない。collect()のfailureListをProgressに含める必要がある
+          failed: [],
           zipSize: 0, // ZIP生成前なのでまだ0
         },
       }

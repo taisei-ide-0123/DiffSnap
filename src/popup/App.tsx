@@ -11,6 +11,7 @@ export const App = () => {
   const completed = usePopupStore((state) => state.completed)
   const candidates = usePopupStore((state) => state.candidates)
   const errorMessage = usePopupStore((state) => state.errorMessage)
+  const reset = usePopupStore((state) => state.reset)
 
   useEffect(() => {
     // Backgroundからのメッセージリスナーをセットアップ
@@ -95,7 +96,7 @@ export const App = () => {
           <div className="text-center py-12">
             <p className="text-red-600 mb-2">{getStatusMessage()}</p>
             <button
-              onClick={() => usePopupStore.getState().reset()}
+              onClick={reset}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               リセット

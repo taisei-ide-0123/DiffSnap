@@ -83,10 +83,11 @@ export const usePopupStore = create<PopupStore>((set) => ({
 
   // エラー設定
   setError: (message) => {
-    set({
+    set((state) => ({
+      ...state, // 既存のフィールド（total, completed等）を保持
       status: 'error',
       errorMessage: message,
-    })
+    }))
   },
 
   // リセット

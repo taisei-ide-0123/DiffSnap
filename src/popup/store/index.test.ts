@@ -130,8 +130,19 @@ describe('Popup Store', () => {
       consoleWarnSpy.mockRestore()
     })
 
-    it('エラー状態への遷移を常に許可する', () => {
+    it('エラー状態への遷移を常に許可する: fetching -> error', () => {
       usePopupStore.getState().updateProgress({ status: 'fetching' })
+      usePopupStore.getState().updateProgress({ status: 'error' })
+
+      expect(usePopupStore.getState().status).toBe('error')
+    })
+
+    it('エラー状態への遷移を常に許可する: detecting -> error', () => {
+      const candidates: ImageCandidate[] = [
+        { url: 'https://example.com/1.jpg', source: 'img' },
+      ]
+      usePopupStore.getState().startCollection(123, candidates)
+      // detecting状態からerrorに遷移
       usePopupStore.getState().updateProgress({ status: 'error' })
 
       expect(usePopupStore.getState().status).toBe('error')
