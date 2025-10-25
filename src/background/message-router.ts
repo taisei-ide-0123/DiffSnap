@@ -126,8 +126,8 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
 
     case 'RETRY_FAILED': {
       console.log('RETRY_FAILED request:', {
-        count: message.urls.length,
-        urls: message.urls,
+        count: message.failedImages.length,
+        failedImages: message.failedImages,
       })
 
       // Issue #17: エラーハンドリング実装完了
@@ -137,7 +137,7 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
       sendResponse({
         status: 'OK',
         message: 'Retry request received',
-        retryCount: message.urls.length,
+        retryCount: message.failedImages.length,
       })
       return true
     }

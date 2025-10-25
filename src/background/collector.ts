@@ -9,7 +9,12 @@
  */
 
 import { ParallelController, isFetchSuccess, type FetchResult } from './parallel-controller'
-import type { ImageCandidate, ImageSnapshot, StateUpdateMessage } from '@/shared/types'
+import type {
+  ImageCandidate,
+  ImageSnapshot,
+  StateUpdateMessage,
+  FailedImage,
+} from '@/shared/types'
 
 export interface CollectionProgress {
   total: number
@@ -214,13 +219,13 @@ export class ImageCollector {
   /**
    * Retry failed image fetches
    *
-   * @param failedUrls - URLs of images that failed to fetch
+   * @param failedImages - Images that failed to fetch (with metadata)
    * @returns Collection result for retry attempt
    */
-  async retryFailed(failedUrls: string[]): Promise<CollectionResult> {
-    // Convert URLs to ImageCandidate objects
-    const candidates: ImageCandidate[] = failedUrls.map((url) => ({
-      url,
+  async retryFailed(failedImages: FailedImage[]): Promise<CollectionResult> {
+    // Convert FailedImage objects to ImageCandidate objects
+    const candidates: ImageCandidate[] = failedImages.map((failed) => ({
+      url: failed.url,
       source: 'img' as const,
     }))
 

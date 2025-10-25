@@ -154,9 +154,19 @@ describe('Message Router', () => {
     it('should handle RETRY_FAILED message', () => {
       const message: RetryFailedMessage = {
         type: 'RETRY_FAILED',
-        urls: [
-          'https://example.com/image1.jpg',
-          'https://example.com/image2.jpg',
+        failedImages: [
+          {
+            url: 'https://example.com/image1.jpg',
+            error: 'CORS error',
+            errorType: 'CORS',
+            retryCount: 0,
+          },
+          {
+            url: 'https://example.com/image2.jpg',
+            error: 'Timeout',
+            errorType: 'TIMEOUT',
+            retryCount: 0,
+          },
         ],
       }
 
@@ -165,7 +175,8 @@ describe('Message Router', () => {
       expect(result).toBe(true)
       expect(mockSendResponse).toHaveBeenCalledWith({
         status: 'OK',
-        message: 'Retry queued (placeholder)',
+        message: 'Retry request received',
+        retryCount: 2,
       })
     })
 

@@ -26,22 +26,44 @@ export const App = () => {
     // chrome.runtime.sendMessage({ type: 'START_COLLECTION', ... })
   }
 
-  const handleRetry = (url: string) => {
+  const handleRetry = async (url: string) => {
     // 単一URLの再試行
-    chrome.runtime.sendMessage({
-      type: 'RETRY_FAILED',
-      urls: [url],
-    })
+    const failedImage = failed.find((f) => f.url === url)
+    if (!failedImage) return
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'RETRY_FAILED',
+        failedImages: [failedImage],
+      })
+
+      if (response?.status === 'OK') {
+        console.log(`Retry queued for ${url}`)
+      } else {
+        console.error('Retry failed:', response)
+      }
+    } catch (error) {
+      console.error('Failed to send retry request:', error)
+    }
   }
 
-  const handleRetryAll = () => {
+  const handleRetryAll = async () => {
     // 全失敗画像の再試行
-    const failedUrls = failed.map((f) => f.url)
-    if (failedUrls.length > 0) {
-      chrome.runtime.sendMessage({
+    if (failed.length === 0) return
+
+    try {
+      const response = await chrome.runtime.sendMessage({
         type: 'RETRY_FAILED',
-        urls: failedUrls,
+        failedImages: failed,
       })
+
+      if (response?.status === 'OK') {
+        console.log(`Retry queued for ${response.retryCount} images`)
+      } else {
+        console.error('Retry all failed:', response)
+      }
+    } catch (error) {
+      console.error('Failed to send retry all request:', error)
     }
   }
 

@@ -1,5 +1,5 @@
 import { AlertCircle, ShieldAlert, WifiOff, Clock, HelpCircle } from 'lucide-react'
-import type { FailedImage } from '@/shared/types'
+import type { FailedImage, ErrorType } from '@/shared/types'
 
 export type ProgressStatus = 'detecting' | 'fetching' | 'creating-zip' | 'complete' | 'error'
 
@@ -20,19 +20,19 @@ const STATUS_LABELS: Record<ProgressStatus, string> = {
   error: 'Error occurred',
 }
 
-const getErrorIcon = (errorMessage: string) => {
-  const errorLower = errorMessage.toLowerCase()
-
-  if (errorLower.includes('cors')) {
-    return <ShieldAlert className="w-4 h-4 text-red-600" aria-hidden="true" />
+const getErrorIcon = (errorType: ErrorType) => {
+  switch (errorType) {
+    case 'CORS':
+      return <ShieldAlert className="w-4 h-4 text-red-600" aria-hidden="true" />
+    case 'TIMEOUT':
+      return <Clock className="w-4 h-4 text-orange-600" aria-hidden="true" />
+    case 'NETWORK':
+    case 'HTTP_ERROR':
+      return <WifiOff className="w-4 h-4 text-red-600" aria-hidden="true" />
+    case 'UNKNOWN':
+    default:
+      return <HelpCircle className="w-4 h-4 text-gray-600" aria-hidden="true" />
   }
-  if (errorLower.includes('timeout')) {
-    return <Clock className="w-4 h-4 text-orange-600" aria-hidden="true" />
-  }
-  if (errorLower.includes('network') || errorLower.includes('fetch')) {
-    return <WifiOff className="w-4 h-4 text-red-600" aria-hidden="true" />
-  }
-  return <HelpCircle className="w-4 h-4 text-gray-600" aria-hidden="true" />
 }
 
 export const ProgressBar = ({
@@ -112,7 +112,7 @@ export const ProgressBar = ({
                   key={`${failed.url}-${index}`}
                   className="flex items-start gap-2 text-xs"
                 >
-                  <div className="flex-shrink-0 mt-0.5">{getErrorIcon(failed.error)}</div>
+                  <div className="flex-shrink-0 mt-0.5">{getErrorIcon(failed.errorType)}</div>
                   <div className="flex-1 min-w-0">
                     <p
                       className="text-gray-700 truncate"
