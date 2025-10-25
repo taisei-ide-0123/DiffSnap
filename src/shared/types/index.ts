@@ -97,7 +97,7 @@ export interface StartCollectionMessage {
 
 export interface RetryFailedMessage {
   type: 'RETRY_FAILED'
-  urls: string[]
+  failedImages: FailedImage[]
 }
 
 export interface CheckDiffMessage {
@@ -153,10 +153,17 @@ export interface StartScrollMessage {
 export type BackgroundToContentMessage = StartScrollMessage
 
 // Keep-Alive & Checkpoint 型定義
+export type ErrorType = 'CORS' | 'TIMEOUT' | 'HTTP_ERROR' | 'NETWORK' | 'UNKNOWN'
+
 export interface FailedImage {
   url: string
   error: string
+  errorType: ErrorType
   retryCount: number
+  source: ImageSource // 元の画像ソースタイプを保持
+  width?: number // 画像サイズ（あれば）
+  height?: number
+  alt?: string // 代替テキスト（あれば）
 }
 
 export interface ProcessingCheckpoint {

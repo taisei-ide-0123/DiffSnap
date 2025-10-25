@@ -9,6 +9,7 @@ export const App = () => {
   const status = usePopupStore((state) => state.status)
   const total = usePopupStore((state) => state.total)
   const completed = usePopupStore((state) => state.completed)
+  const failed = usePopupStore((state) => state.failed)
   const candidates = usePopupStore((state) => state.candidates)
   const errorMessage = usePopupStore((state) => state.errorMessage)
   const reset = usePopupStore((state) => state.reset)
@@ -23,6 +24,47 @@ export const App = () => {
   const handleDownload = () => {
     // TODO: Implement download logic
     // chrome.runtime.sendMessage({ type: 'START_COLLECTION', ... })
+  }
+
+  const handleRetry = async (url: string) => {
+    // 単一URLの再試行
+    const failedImage = failed.find((f) => f.url === url)
+    if (!failedImage) return
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'RETRY_FAILED',
+        failedImages: [failedImage],
+      })
+
+      if (response?.status === 'OK') {
+        console.log(`Retry queued for ${url}`)
+      } else {
+        console.error('Retry failed:', response)
+      }
+    } catch (error) {
+      console.error('Failed to send retry request:', error)
+    }
+  }
+
+  const handleRetryAll = async () => {
+    // 全失敗画像の再試行
+    if (failed.length === 0) return
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'RETRY_FAILED',
+        failedImages: failed,
+      })
+
+      if (response?.status === 'OK') {
+        console.log(`Retry queued for ${response.retryCount} images`)
+      } else {
+        console.error('Retry all failed:', response)
+      }
+    } catch (error) {
+      console.error('Failed to send retry all request:', error)
+    }
   }
 
   const getStatusMessage = () => {
@@ -79,6 +121,9 @@ export const App = () => {
               status={getProgressBarStatus()}
               current={completed}
               total={total}
+              failedImages={failed}
+              onRetry={handleRetry}
+              onRetryAll={handleRetryAll}
             />
             <div className="text-center">
               <p className="text-gray-600 mb-1">{getStatusMessage()}</p>

@@ -1,5 +1,5 @@
-import { AlertCircle } from 'lucide-react'
-import type { FailedImage } from '@/shared/types'
+import { AlertCircle, ShieldAlert, WifiOff, Clock, HelpCircle } from 'lucide-react'
+import type { FailedImage, ErrorType } from '@/shared/types'
 
 export type ProgressStatus = 'detecting' | 'fetching' | 'creating-zip' | 'complete' | 'error'
 
@@ -9,6 +9,7 @@ interface ProgressBarProps {
   total: number
   failedImages?: FailedImage[]
   onRetry?: (url: string) => void
+  onRetryAll?: () => void
 }
 
 const STATUS_LABELS: Record<ProgressStatus, string> = {
@@ -19,12 +20,28 @@ const STATUS_LABELS: Record<ProgressStatus, string> = {
   error: 'Error occurred',
 }
 
+const getErrorIcon = (errorType: ErrorType) => {
+  switch (errorType) {
+    case 'CORS':
+      return <ShieldAlert className="w-4 h-4 text-red-600" aria-hidden="true" />
+    case 'TIMEOUT':
+      return <Clock className="w-4 h-4 text-orange-600" aria-hidden="true" />
+    case 'NETWORK':
+    case 'HTTP_ERROR':
+      return <WifiOff className="w-4 h-4 text-red-600" aria-hidden="true" />
+    case 'UNKNOWN':
+    default:
+      return <HelpCircle className="w-4 h-4 text-gray-600" aria-hidden="true" />
+  }
+}
+
 export const ProgressBar = ({
   status,
   current,
   total,
   failedImages = [],
   onRetry,
+  onRetryAll,
 }: ProgressBarProps) => {
   const percentage = total > 0 ? Math.round((current / total) * 100) : 0
   const hasErrors = failedImages.length > 0
@@ -67,23 +84,35 @@ export const ProgressBar = ({
       {/* エラーリスト */}
       {hasErrors && (
         <div
-          className="mt-3 max-h-32 overflow-y-auto border border-red-200 rounded-md bg-red-50"
+          className="mt-3 border border-red-200 rounded-md bg-red-50"
           role="alert"
           aria-label={`${failedImages.length}件のエラー`}
         >
           <div className="px-3 py-2">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertCircle className="w-4 h-4 text-red-600" aria-hidden="true" />
-              <span className="text-sm font-semibold text-red-800">
-                Failed to fetch {failedImages.length} image{failedImages.length > 1 ? 's' : ''}
-              </span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600" aria-hidden="true" />
+                <span className="text-sm font-semibold text-red-800">
+                  Failed to fetch {failedImages.length} image{failedImages.length > 1 ? 's' : ''}
+                </span>
+              </div>
+              {onRetryAll && (
+                <button
+                  onClick={onRetryAll}
+                  className="px-3 py-1 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
+                  aria-label="全ての失敗画像を再試行"
+                >
+                  Retry All
+                </button>
+              )}
             </div>
-            <ul className="space-y-2">
+            <ul className="space-y-2 max-h-32 overflow-y-auto">
               {failedImages.map((failed, index) => (
                 <li
                   key={`${failed.url}-${index}`}
-                  className="flex items-start justify-between gap-2 text-xs"
+                  className="flex items-start gap-2 text-xs"
                 >
+                  <div className="flex-shrink-0 mt-0.5">{getErrorIcon(failed.errorType)}</div>
                   <div className="flex-1 min-w-0">
                     <p
                       className="text-gray-700 truncate"

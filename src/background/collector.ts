@@ -9,13 +9,19 @@
  */
 
 import { ParallelController, isFetchSuccess, type FetchResult } from './parallel-controller'
-import type { ImageCandidate, ImageSnapshot, StateUpdateMessage } from '@/shared/types'
+import type {
+  ImageCandidate,
+  ImageSnapshot,
+  StateUpdateMessage,
+  FailedImage,
+} from '@/shared/types'
 
 export interface CollectionProgress {
   total: number
   completed: number
   failed: number
   deduplicated: number
+  failedImages: FailedImage[] // 失敗した画像の詳細リスト
 }
 
 export interface CollectedImage {
@@ -28,7 +34,7 @@ export interface CollectedImage {
 
 export interface CollectionResult {
   images: CollectedImage[]
-  failed: Array<{ candidate: ImageCandidate; error: string }>
+  failed: FailedImage[] // 失敗した画像の詳細（メタデータ保持）
   stats: {
     total: number
     fetched: number
@@ -76,9 +82,7 @@ export class ImageCollector {
           status: 'fetching',
           total: progress.total,
           completed: progress.completed,
-          // TODO: 失敗詳細の伝播 - CollectionProgressがfailed: number型のみ持つため、
-          // 詳細情報を送信できない。collect()のfailureListをProgressに含める必要がある
-          failed: [],
+          failed: progress.failedImages, // 失敗詳細を送信
           zipSize: 0, // ZIP生成前なのでまだ0
         },
       }
@@ -141,10 +145,10 @@ export class ImageCollector {
 
     // Hash-based deduplication map
     const hashMap = new Map<string, CollectedImage>()
-    const failureList: Array<{ candidate: ImageCandidate; error: string }> = []
+    const failureList: FailedImage[] = []
 
     // Initial progress
-    await this.notifyProgress({ total, completed, failed, deduplicated })
+    await this.notifyProgress({ total, completed, failed, deduplicated, failedImages: [] })
 
     // Fetch all images in parallel
     const results = await this.controller.fetchAll(candidates)
@@ -174,23 +178,30 @@ export class ImageCollector {
 
         completed++
       } else {
-        // Fetch failed
-        failureList.push({
-          candidate: result.candidate,
-          error: result.error,
-        })
+        // Fetch failed - FailedImageオブジェクトを作成（全メタデータを保持）
+        const failedImage: FailedImage = {
+          url: result.candidate.url,
+          error: result.message ?? result.error,
+          errorType: result.error,
+          retryCount: 0,
+          source: result.candidate.source,
+          width: result.candidate.width,
+          height: result.candidate.height,
+          alt: result.candidate.alt,
+        }
+        failureList.push(failedImage)
         completed++
         failed++
       }
 
       // Report progress periodically (every 10 images)
       if (completed % 10 === 0) {
-        await this.notifyProgress({ total, completed, failed, deduplicated })
+        await this.notifyProgress({ total, completed, failed, deduplicated, failedImages: failureList })
       }
     }
 
     // Final progress update
-    await this.notifyProgress({ total, completed, failed, deduplicated })
+    await this.notifyProgress({ total, completed, failed, deduplicated, failedImages: failureList })
 
     return {
       images: Array.from(hashMap.values()),
@@ -209,6 +220,26 @@ export class ImageCollector {
    */
   getStats() {
     return this.controller.getStats()
+  }
+
+  /**
+   * Retry failed image fetches
+   *
+   * @param failedImages - Images that failed to fetch (with metadata)
+   * @returns Collection result for retry attempt
+   */
+  async retryFailed(failedImages: FailedImage[]): Promise<CollectionResult> {
+    // Convert FailedImage objects to ImageCandidate objects
+    // 元のメタデータ（source, width, height, alt）を保持
+    const candidates: ImageCandidate[] = failedImages.map((failed) => ({
+      url: failed.url,
+      source: failed.source,
+      width: failed.width,
+      height: failed.height,
+      alt: failed.alt,
+    }))
+
+    return this.collect(candidates)
   }
 
   /**
