@@ -8,10 +8,10 @@ describe('Footer', () => {
   it('renders download button and settings button', () => {
     render(<Footer />)
     expect(
-      screen.getByRole('button', { name: '全画像ダウンロード' })
+      screen.getByRole('button', { name: 'Download all images' })
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: '設定を開く' })
+      screen.getByRole('button', { name: 'Open settings' })
     ).toBeInTheDocument()
   })
 
@@ -20,27 +20,27 @@ describe('Footer', () => {
     const onDownload = vi.fn()
     render(<Footer onDownload={onDownload} />)
 
-    await user.click(screen.getByRole('button', { name: '全画像ダウンロード' }))
+    await user.click(screen.getByRole('button', { name: 'Download all images' }))
     expect(onDownload).toHaveBeenCalledTimes(1)
   })
 
   it('shows downloading state', () => {
     render(<Footer isDownloading={true} />)
     expect(
-      screen.getByRole('button', { name: 'ダウンロード中' })
+      screen.getByRole('button', { name: 'Downloading images' })
     ).toBeInTheDocument()
     expect(screen.getByText('Downloading...')).toBeInTheDocument()
   })
 
   it('disables download button when disabled prop is true', () => {
     render(<Footer disabled={true} />)
-    const button = screen.getByRole('button', { name: '全画像ダウンロード' })
+    const button = screen.getByRole('button', { name: 'Download all images' })
     expect(button).toBeDisabled()
   })
 
   it('disables download button when isDownloading is true', () => {
     render(<Footer isDownloading={true} />)
-    const button = screen.getByRole('button', { name: 'ダウンロード中' })
+    const button = screen.getByRole('button', { name: 'Downloading images' })
     expect(button).toBeDisabled()
   })
 
@@ -49,29 +49,31 @@ describe('Footer', () => {
     const onOpenSettings = vi.fn()
     render(<Footer onOpenSettings={onOpenSettings} />)
 
-    await user.click(screen.getByRole('button', { name: '設定を開く' }))
+    await user.click(screen.getByRole('button', { name: 'Open settings' }))
     expect(onOpenSettings).toHaveBeenCalledTimes(1)
   })
 
   it('calls chrome.runtime.openOptionsPage when onOpenSettings is not provided', async () => {
     const user = userEvent.setup()
     const openOptionsPage = vi.fn()
-    global.chrome = {
+    vi.stubGlobal('chrome', {
       runtime: {
         openOptionsPage,
       },
-    } as typeof chrome
+    })
 
     render(<Footer />)
-    await user.click(screen.getByRole('button', { name: '設定を開く' }))
+    await user.click(screen.getByRole('button', { name: 'Open settings' }))
     expect(openOptionsPage).toHaveBeenCalledTimes(1)
+
+    vi.unstubAllGlobals()
   })
 
   it('has accessible button labels', () => {
     render(<Footer />)
     expect(
-      screen.getByLabelText('全画像ダウンロード')
+      screen.getByLabelText('Download all images')
     ).toBeInTheDocument()
-    expect(screen.getByLabelText('設定を開く')).toBeInTheDocument()
+    expect(screen.getByLabelText('Open settings')).toBeInTheDocument()
   })
 })

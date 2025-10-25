@@ -3,7 +3,7 @@ import { Footer } from './components/Footer'
 
 export const App = () => {
   const handleDownload = () => {
-    console.log('Download clicked')
+    // TODO: Implement download logic
   }
 
   return (
