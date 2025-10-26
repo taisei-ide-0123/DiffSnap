@@ -28,7 +28,7 @@ export const download = async (options: DownloadOptions): Promise<DownloadResult
   const { blob, filename, saveAs = true } = options
 
   let blobUrl: string | null = null
-  let revokeTimeoutId: ReturnType<typeof setTimeout> | null = null
+  let revokeTimeoutId: number | null = null
 
   try {
     // Create blob URL
@@ -82,8 +82,7 @@ export const showNotification = async (title: string, message: string): Promise<
   try {
     await chrome.notifications.create({
       type: 'basic',
-      // TODO: Add icon file in public/assets/icon-128.png (MVP Week 4-5)
-      // iconUrl: 'assets/icon-128.png',
+      iconUrl: 'assets/icon-128.png',
       title,
       message,
     })

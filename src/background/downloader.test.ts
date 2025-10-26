@@ -133,9 +133,8 @@ describe('download', () => {
 
   it('should create unique blob URL for each download', async () => {
     let urlCounter = 0
-    ;(global.URL.createObjectURL as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      () => `blob:mock-url-${++urlCounter}`
-    )
+    const mockCreateObjectURL = vi.fn(() => `blob:mock-url-${++urlCounter}`)
+    global.URL.createObjectURL = mockCreateObjectURL
 
     const blob1 = new Blob(['data1'])
     const blob2 = new Blob(['data2'])
@@ -204,6 +203,7 @@ describe('showNotification', () => {
 
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
+      iconUrl: 'assets/icon-128.png',
       title: 'Test Title',
       message: 'Test Message',
     })
@@ -231,6 +231,7 @@ describe('showNotification', () => {
 
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
+      iconUrl: 'assets/icon-128.png',
       title: 'Title',
       message: longMessage,
     })
@@ -241,6 +242,7 @@ describe('showNotification', () => {
 
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
+      iconUrl: 'assets/icon-128.png',
       title: 'テスト',
       message: 'メッセージ\n改行あり',
     })
@@ -286,6 +288,7 @@ describe('downloadWithNotification', () => {
     expect(result.success).toBe(true)
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
+      iconUrl: 'assets/icon-128.png',
       title: 'ダウンロード成功',
       message: 'test-images.zip をダウンロードしました',
     })
@@ -302,6 +305,7 @@ describe('downloadWithNotification', () => {
     expect(result.success).toBe(false)
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
+      iconUrl: 'assets/icon-128.png',
       title: 'ダウンロード失敗',
       message: 'エラー: Network error\n再試行してください',
     })
@@ -318,6 +322,7 @@ describe('downloadWithNotification', () => {
     expect(result.success).toBe(false)
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
+      iconUrl: 'assets/icon-128.png',
       title: 'ダウンロード失敗',
       message: 'エラー: 不明なダウンロードエラー\n再試行してください',
     })
@@ -392,9 +397,8 @@ describe('Memory leak prevention', () => {
 
   it('should revoke multiple blob URLs independently', async () => {
     let urlCounter = 0
-    ;(global.URL.createObjectURL as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      () => `blob:mock-url-${++urlCounter}`
-    )
+    const mockCreateObjectURL = vi.fn(() => `blob:mock-url-${++urlCounter}`)
+    global.URL.createObjectURL = mockCreateObjectURL
 
     const blob1 = new Blob(['data1'])
     const blob2 = new Blob(['data2'])
