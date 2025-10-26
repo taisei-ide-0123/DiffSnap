@@ -316,15 +316,24 @@ describe('DiffView', () => {
       const firstImg = imgs[0]
       if (!firstImg) throw new Error('Image not found')
 
-      firstImg.dispatchEvent(new Event('load'))
-
       const firstCard = firstImg.closest('div')
       if (!firstCard) throw new Error('Card not found')
 
+      // 画像のloadイベントを発火
+      firstImg.dispatchEvent(new Event('load'))
+
+      // loadイベントの処理を待機
+      await waitFor(() => {
+        expect(firstImg).toHaveClass('opacity-100')
+      })
+
+      // ホバー前はサイズが表示されていないことを確認
       expect(screen.queryByText('800 × 600')).not.toBeInTheDocument()
 
+      // ホバー
       await user.hover(firstCard)
 
+      // ホバー後はサイズが表示されることを確認
       await waitFor(() => {
         expect(screen.getByText('800 × 600')).toBeInTheDocument()
       })

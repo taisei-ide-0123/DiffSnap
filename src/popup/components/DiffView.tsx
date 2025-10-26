@@ -1,13 +1,9 @@
 import { useState } from 'react'
 import { Download, Sparkles } from 'lucide-react'
+import type { ImageSnapshot } from '@/shared/types'
 
-interface DiffImageData {
-  url: string
-  width: number
-  height: number
-  alt?: string
-  hash: string
-}
+// ImageSnapshotから差分表示に必要なフィールドのみを抽出
+type DiffImageData = Pick<ImageSnapshot, 'url' | 'width' | 'height' | 'alt' | 'hash'>
 
 interface DiffViewProps {
   newImages: DiffImageData[]
@@ -168,7 +164,7 @@ const ProTierDiffView = ({
           </div>
           <div className="p-2 max-h-96 overflow-y-auto">
             {newImages.length > 0 ? (
-              <div className="grid grid-cols-2 gap-1">
+              <div className="grid grid-cols-2 gap-1" role="list" aria-label="新規画像一覧">
                 {newImages.map((image, index) => (
                   <DiffImageCard key={`new-${image.hash}-${index}`} image={image} isNew={true} />
                 ))}
@@ -189,7 +185,7 @@ const ProTierDiffView = ({
           </div>
           <div className="p-2 max-h-96 overflow-y-auto">
             {existingImages.length > 0 ? (
-              <div className="grid grid-cols-2 gap-1">
+              <div className="grid grid-cols-2 gap-1" role="list" aria-label="既存画像一覧">
                 {existingImages.map((image, index) => (
                   <DiffImageCard key={`existing-${image.hash}-${index}`} image={image} isNew={false} />
                 ))}
@@ -242,11 +238,14 @@ const DiffImageCard = ({ image, isNew }: DiffImageCardProps) => {
   const borderColor = isNew ? 'border-green-400' : 'border-gray-300'
   const opacity = isNew ? 'opacity-100' : 'opacity-60'
 
-  const sizeText = `${image.width} × ${image.height}`
+  const sizeText = image.width && image.height
+    ? `${image.width} × ${image.height}`
+    : undefined
 
   return (
     <div
       className={`relative aspect-square bg-gray-100 rounded overflow-hidden border-2 ${borderColor} ${opacity}`}
+      role="listitem"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -286,8 +285,13 @@ const DiffImageCard = ({ image, isNew }: DiffImageCardProps) => {
       )}
 
       {isHovered && isLoaded && !hasError && (
-        <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white text-xs p-1 transition-opacity duration-200">
-          <div className="font-semibold text-center">{sizeText}</div>
+        <div
+          className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white text-xs p-1 transition-opacity duration-200"
+          role="tooltip"
+        >
+          {sizeText && (
+            <div className="font-semibold text-center">{sizeText}</div>
+          )}
           {image.alt && (
             <div className="text-center line-clamp-2 break-all mt-1">
               {image.alt}
