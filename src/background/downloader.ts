@@ -28,7 +28,7 @@ export const download = async (options: DownloadOptions): Promise<DownloadResult
   const { blob, filename, saveAs = true } = options
 
   let blobUrl: string | null = null
-  let revokeTimeoutId: number | null = null
+  let revokeTimeoutId: ReturnType<typeof setTimeout> | null = null
 
   try {
     // Create blob URL

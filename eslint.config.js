@@ -40,5 +40,11 @@ export default tseslint.config(
       '@typescript-eslint/prefer-optional-chain': 'warn',
     },
   },
+  {
+    files: ['e2e/**/*.{ts,tsx}'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+    },
+  },
   prettier
 )
