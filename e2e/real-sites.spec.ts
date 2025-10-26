@@ -170,7 +170,7 @@ test.describe('Real Sites E2E Tests', () => {
     await page.close()
   })
 
-  // NOTE: ダウンロード完了テストは機能実装後に有効化
+  // NOTE: ダウンロード完了テストは機能実装後に有効化 (Issue #60)
   // test('ダウンロード完了が15秒以内に完了すること', async ({
   //   context,
   //   extensionId,
