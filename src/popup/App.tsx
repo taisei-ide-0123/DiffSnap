@@ -134,8 +134,18 @@ export const App = () => {
           </div>
         )}
 
-        {(status === 'idle' || status === 'complete') &&
-          candidates.length > 0 && <PreviewGrid images={candidates} />}
+        {status === 'idle' && candidates.length > 0 && (
+          <PreviewGrid images={candidates} />
+        )}
+
+        {status === 'complete' && (
+          <div data-testid="download-complete">
+            <div className="text-center py-4 bg-green-50 rounded-lg mb-4">
+              <p className="text-green-600 font-medium">ダウンロード完了</p>
+            </div>
+            {candidates.length > 0 && <PreviewGrid images={candidates} />}
+          </div>
+        )}
 
         {status === 'error' && (
           <div className="text-center py-12">
