@@ -446,4 +446,18 @@ describe('ZipError', () => {
       expect(error).toBeInstanceOf(ZipError)
     }
   })
+
+  it('should preserve error cause for debugging', () => {
+    const originalError = new Error('Original cause')
+    const error = new ZipError('Wrapper error', 'TEST_CODE', originalError)
+
+    expect(error.cause).toBe(originalError)
+    expect(error.message).toBe('Wrapper error')
+    expect(error.code).toBe('TEST_CODE')
+  })
+
+  it('should work without cause', () => {
+    const error = new ZipError('Test error', 'TEST_CODE')
+    expect(error.cause).toBeUndefined()
+  })
 })

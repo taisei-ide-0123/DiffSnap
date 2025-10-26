@@ -99,6 +99,7 @@ export interface CreateZipResult {
  * @param images - Collected images with blobs and metadata
  * @param options - ZIP generation options
  * @returns ZIP generation result
+ * @throws {ZipError} EMPTY_IMAGES - When images array is empty
  * @throws {ZipError} ZIP_SIZE_LIMIT_EXCEEDED - When size exceeds 1GB
  * @throws {ZipError} ZIP_GENERATION_FAILED - When ZIP generation fails
  */
@@ -116,10 +117,7 @@ export const createZip = async (
 
   // Add each image to ZIP
   for (let i = 0; i < images.length; i++) {
-    // TypeScript doesn't know that i < images.length guarantees images[i] exists
-    // Using non-null assertion as this is guaranteed by the loop condition
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const image = images[i]!
+    const image = images[i]
 
     // Generate filename from template
     let filename = makeFilename(options.template, image.snapshot, i + 1, options.pageUrl)
