@@ -1,6 +1,7 @@
 import { test as base, chromium, type BrowserContext } from '@playwright/test'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import fs from 'fs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -13,7 +14,7 @@ export const test = base.extend<{
   context: async ({}, use) => {
     const pathToExtension = path.join(__dirname, '..', 'dist')
     const context = await chromium.launchPersistentContext('', {
-      headless: false,
+      headless: !!process.env.CI,
       args: [
         `--disable-extensions-except=${pathToExtension}`,
         `--load-extension=${pathToExtension}`,
@@ -70,6 +71,10 @@ export const takeScreenshot = async (
 ) => {
   const page = context.pages()[0]
   if (page) {
+    const screenshotsDir = 'screenshots'
+    if (!fs.existsSync(screenshotsDir)) {
+      fs.mkdirSync(screenshotsDir, { recursive: true })
+    }
     await page.screenshot({ path: `screenshots/${name}.png`, fullPage: true })
   }
 }

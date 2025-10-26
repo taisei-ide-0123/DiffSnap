@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test'
-import path from 'path'
 
 export default defineConfig({
   testDir: './e2e',
@@ -32,11 +31,4 @@ export default defineConfig({
       },
     },
   ],
-
-  webServer: {
-    command: 'pnpm build && cd dist && python3 -m http.server 5173',
-    port: 5173,
-    timeout: 120000,
-    reuseExistingServer: !process.env.CI,
-  },
 })
