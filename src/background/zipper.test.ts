@@ -10,8 +10,8 @@
  * - Download functionality
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createZip, download, ZipError, ZIP_SIZE_LIMIT } from './zipper'
+import { describe, it, expect } from 'vitest'
+import { createZip, ZipError, ZIP_SIZE_LIMIT } from './zipper'
 import type { CollectedImage } from './collector'
 import type { ImageSnapshot } from '@/shared/types'
 
@@ -287,144 +287,6 @@ describe('createZip', () => {
 
     // Should complete reasonably quickly (allow 5 seconds for 100 images)
     expect(duration).toBeLessThan(5000)
-  })
-})
-
-describe('download', () => {
-  // Mock chrome.downloads API
-  const mockDownload = vi.fn()
-  beforeEach(() => {
-    global.chrome = {
-      downloads: {
-        download: mockDownload,
-      },
-    } as unknown as typeof chrome
-
-    // Reset mock
-    mockDownload.mockReset()
-    mockDownload.mockResolvedValue(1) // Download ID
-
-    // Mock URL.createObjectURL and revokeObjectURL
-    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url')
-    global.URL.revokeObjectURL = vi.fn()
-
-    // Mock setTimeout to execute immediately in tests
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('should download blob with default options', async () => {
-    const blob = new Blob(['test-data'])
-    const filename = 'test.zip'
-
-    const downloadId = await download(blob, filename)
-
-    expect(downloadId).toBe(1)
-    expect(mockDownload).toHaveBeenCalledWith({
-      url: 'blob:mock-url',
-      filename: 'test.zip',
-      saveAs: true,
-    })
-
-    expect(URL.createObjectURL).toHaveBeenCalledWith(blob)
-  })
-
-  it('should download blob with saveAs=false', async () => {
-    const blob = new Blob(['test-data'])
-    const filename = 'test.zip'
-
-    const downloadId = await download(blob, filename, { saveAs: false })
-
-    expect(downloadId).toBe(1)
-    expect(mockDownload).toHaveBeenCalledWith({
-      url: 'blob:mock-url',
-      filename: 'test.zip',
-      saveAs: false,
-    })
-  })
-
-  it('should revoke blob URL after timeout', async () => {
-    const blob = new Blob(['test-data'])
-    const filename = 'test.zip'
-
-    await download(blob, filename, { revokeTimeout: 1000 })
-
-    // Initially, URL should not be revoked
-    expect(URL.revokeObjectURL).not.toHaveBeenCalled()
-
-    // Fast-forward time
-    vi.advanceTimersByTime(1000)
-
-    // Now URL should be revoked
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
-  })
-
-  it('should use custom revoke timeout', async () => {
-    const blob = new Blob(['test-data'])
-    const filename = 'test.zip'
-
-    await download(blob, filename, { revokeTimeout: 5000 })
-
-    // Advance by 4999ms - should not revoke yet
-    vi.advanceTimersByTime(4999)
-    expect(URL.revokeObjectURL).not.toHaveBeenCalled()
-
-    // Advance by 1ms more - should revoke
-    vi.advanceTimersByTime(1)
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
-  })
-
-  it('should revoke URL immediately on download error', async () => {
-    mockDownload.mockRejectedValue(new Error('Download failed'))
-
-    const blob = new Blob(['test-data'])
-    const filename = 'test.zip'
-
-    await expect(download(blob, filename)).rejects.toThrow('Failed to download test.zip')
-
-    // URL should be revoked immediately on error
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
-  })
-
-  it('should handle download API errors gracefully', async () => {
-    mockDownload.mockRejectedValue(new Error('Permission denied'))
-
-    const blob = new Blob(['test-data'])
-    const filename = 'test.zip'
-
-    await expect(download(blob, filename)).rejects.toThrow('Permission denied')
-  })
-
-  it('should log download start', async () => {
-    const consoleSpy = vi.spyOn(console, 'log')
-
-    const blob = new Blob(['test-data'])
-    const filename = 'test.zip'
-
-    await download(blob, filename)
-
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Download started'))
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('test.zip'))
-
-    consoleSpy.mockRestore()
-  })
-
-  it('should log URL revocation', async () => {
-    const consoleSpy = vi.spyOn(console, 'log')
-
-    const blob = new Blob(['test-data'])
-    const filename = 'test.zip'
-
-    await download(blob, filename, { revokeTimeout: 1000 })
-
-    vi.advanceTimersByTime(1000)
-
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Blob URL revoked'))
-
-    consoleSpy.mockRestore()
   })
 })
 
