@@ -115,9 +115,14 @@ export const createZip = async (
   let cumulativeSize = 0
 
   // Add each image to ZIP
-  for (const image of images) {
+  for (let i = 0; i < images.length; i++) {
+    // TypeScript doesn't know that i < images.length guarantees images[i] exists
+    // Using non-null assertion as this is guaranteed by the loop condition
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const image = images[i]!
+
     // Generate filename from template
-    let filename = makeFilename(options.template, image.snapshot, images.indexOf(image) + 1, options.pageUrl)
+    let filename = makeFilename(options.template, image.snapshot, i + 1, options.pageUrl)
 
     // Deconflict filename
     filename = deconflict(filename, existingFilenames)
