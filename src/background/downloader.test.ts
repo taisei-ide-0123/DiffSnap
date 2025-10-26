@@ -200,7 +200,6 @@ describe('showNotification', () => {
 
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
-      iconUrl: 'assets/icon-128.png',
       title: 'Test Title',
       message: 'Test Message',
     })
@@ -228,7 +227,6 @@ describe('showNotification', () => {
 
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
-      iconUrl: 'assets/icon-128.png',
       title: 'Title',
       message: longMessage,
     })
@@ -239,7 +237,6 @@ describe('showNotification', () => {
 
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
-      iconUrl: 'assets/icon-128.png',
       title: 'テスト',
       message: 'メッセージ\n改行あり',
     })
@@ -285,7 +282,6 @@ describe('downloadWithNotification', () => {
     expect(result.success).toBe(true)
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
-      iconUrl: 'assets/icon-128.png',
       title: 'ダウンロード成功',
       message: 'test-images.zip をダウンロードしました',
     })
@@ -302,7 +298,6 @@ describe('downloadWithNotification', () => {
     expect(result.success).toBe(false)
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
-      iconUrl: 'assets/icon-128.png',
       title: 'ダウンロード失敗',
       message: 'エラー: Network error\n再試行してください',
     })
@@ -319,7 +314,6 @@ describe('downloadWithNotification', () => {
     expect(result.success).toBe(false)
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
-      iconUrl: 'assets/icon-128.png',
       title: 'ダウンロード失敗',
       message: 'エラー: Unknown download error\n再試行してください',
     })

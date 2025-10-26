@@ -28,6 +28,7 @@ export const download = async (options: DownloadOptions): Promise<DownloadResult
   const { blob, filename, saveAs = true } = options
 
   let blobUrl: string | null = null
+  let revokeTimeoutId: ReturnType<typeof setTimeout> | null = null
 
   try {
     // Create blob URL
@@ -41,7 +42,7 @@ export const download = async (options: DownloadOptions): Promise<DownloadResult
     })
 
     // Schedule URL cleanup after 60 seconds
-    setTimeout(() => {
+    revokeTimeoutId = setTimeout(() => {
       if (blobUrl) {
         URL.revokeObjectURL(blobUrl)
       }
@@ -52,6 +53,11 @@ export const download = async (options: DownloadOptions): Promise<DownloadResult
       downloadId,
     }
   } catch (error) {
+    // Cancel scheduled revocation if it exists
+    if (revokeTimeoutId !== null) {
+      clearTimeout(revokeTimeoutId)
+    }
+
     // Clean up blob URL immediately on error
     if (blobUrl) {
       URL.revokeObjectURL(blobUrl)
@@ -76,7 +82,8 @@ export const showNotification = async (title: string, message: string): Promise<
   try {
     await chrome.notifications.create({
       type: 'basic',
-      iconUrl: 'assets/icon-128.png',
+      // TODO: Add icon file in public/assets/icon-128.png (MVP Week 4-5)
+      // iconUrl: 'assets/icon-128.png',
       title,
       message,
     })
