@@ -126,9 +126,9 @@ export const createZip = async (
     filename = deconflict(filename, existingFilenames)
     existingFilenames.add(filename)
 
-    // Check cumulative size
-    cumulativeSize += image.blob.size
-    if (cumulativeSize > ZIP_SIZE_LIMIT) {
+    // Check cumulative size BEFORE adding to ZIP
+    const nextSize = cumulativeSize + image.blob.size
+    if (nextSize > ZIP_SIZE_LIMIT) {
       throw new ZipError(
         `ZIP size would exceed limit of ${ZIP_SIZE_LIMIT} bytes (1GB)`,
         'ZIP_SIZE_LIMIT_EXCEEDED'
@@ -137,6 +137,7 @@ export const createZip = async (
 
     // Add file to ZIP
     zip.file(filename, image.blob)
+    cumulativeSize = nextSize
   }
 
   // Generate ZIP blob
