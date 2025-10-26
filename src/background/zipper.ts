@@ -117,6 +117,7 @@ export const createZip = async (
   // Add each image to ZIP
   for (let i = 0; i < images.length; i++) {
     const image = images[i]
+    if (!image) continue
 
     // Generate filename from template
     let filename = makeFilename(options.template, image.snapshot, i + 1, options.pageUrl)
