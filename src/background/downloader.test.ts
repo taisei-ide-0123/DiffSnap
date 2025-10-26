@@ -128,7 +128,7 @@ describe('download', () => {
     const result = await download({ blob, filename })
 
     expect(result.success).toBe(false)
-    expect(result.error).toBe('Unknown download error')
+    expect(result.error).toBe('不明なダウンロードエラー')
   })
 
   it('should create unique blob URL for each download', async () => {
@@ -193,6 +193,10 @@ describe('showNotification', () => {
 
     mockNotificationCreate.mockReset()
     mockNotificationCreate.mockResolvedValue('notification-id')
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('should show notification with correct parameters', async () => {
@@ -315,7 +319,7 @@ describe('downloadWithNotification', () => {
     expect(mockNotificationCreate).toHaveBeenCalledWith({
       type: 'basic',
       title: 'ダウンロード失敗',
-      message: 'エラー: Unknown download error\n再試行してください',
+      message: 'エラー: 不明なダウンロードエラー\n再試行してください',
     })
   })
 

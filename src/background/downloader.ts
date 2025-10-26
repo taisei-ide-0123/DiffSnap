@@ -42,10 +42,10 @@ export const download = async (options: DownloadOptions): Promise<DownloadResult
     })
 
     // Schedule URL cleanup after 60 seconds
+    // Capture the URL value to avoid race conditions with closure
+    const urlToRevoke = blobUrl
     revokeTimeoutId = setTimeout(() => {
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl)
-      }
+      URL.revokeObjectURL(urlToRevoke)
     }, REVOKE_TIMEOUT_MS)
 
     return {
@@ -63,7 +63,7 @@ export const download = async (options: DownloadOptions): Promise<DownloadResult
       URL.revokeObjectURL(blobUrl)
     }
 
-    const errorMessage = error instanceof Error ? error.message : 'Unknown download error'
+    const errorMessage = error instanceof Error ? error.message : '不明なダウンロードエラー'
 
     return {
       success: false,

@@ -5,7 +5,6 @@
  * - Create ZIP files from collected images with JSZip
  * - Apply filename templates and deduplication
  * - Size limit enforcement (1GB)
- * - Download trigger via chrome.downloads API
  *
  * @module background/zipper
  */
