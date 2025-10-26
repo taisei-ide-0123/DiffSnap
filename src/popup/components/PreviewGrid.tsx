@@ -94,6 +94,7 @@ const PreviewCard = ({ image }: PreviewCardProps) => {
     <div
       className="relative aspect-square bg-gray-100 rounded overflow-hidden group"
       role="listitem"
+      data-testid="preview-image"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

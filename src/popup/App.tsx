@@ -137,6 +137,15 @@ export const App = () => {
         {(status === 'idle' || status === 'complete') &&
           candidates.length > 0 && <PreviewGrid images={candidates} />}
 
+        {status === 'complete' && (
+          <div
+            className="text-center py-12"
+            data-testid="download-complete"
+          >
+            <p className="text-green-600 mb-2">ダウンロード完了</p>
+          </div>
+        )}
+
         {status === 'error' && (
           <div className="text-center py-12">
             <p className="text-red-600 mb-2">{getStatusMessage()}</p>
