@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import type { ImageCandidate } from '@/shared/types'
+import { formatImageSize } from '@/lib/image-utils'
 
 // PreviewGrid用の表示型を定義（既存型を拡張）
 interface PreviewImageData extends Pick<ImageCandidate, 'url' | 'width' | 'height' | 'alt'> {
@@ -87,9 +88,7 @@ const PreviewCard = ({ image }: PreviewCardProps) => {
   const [isLoaded, setIsLoaded] = useState(false)
   const [hasError, setHasError] = useState(false)
 
-  const sizeText = image.width && image.height
-    ? `${image.width} × ${image.height}`
-    : undefined
+  const sizeText = formatImageSize(image.width, image.height)
 
   return (
     <div
@@ -130,7 +129,7 @@ const PreviewCard = ({ image }: PreviewCardProps) => {
       {isHovered && isLoaded && !hasError && (
         <div
           className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white text-xs p-2 transition-opacity duration-200"
-          role="tooltip"
+          aria-live="polite"
         >
           {sizeText && (
             <div className="font-semibold mb-1">{sizeText}</div>
