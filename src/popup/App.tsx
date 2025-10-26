@@ -134,15 +134,16 @@ export const App = () => {
           </div>
         )}
 
-        {(status === 'idle' || status === 'complete') &&
-          candidates.length > 0 && <PreviewGrid images={candidates} />}
+        {status === 'idle' && candidates.length > 0 && (
+          <PreviewGrid images={candidates} />
+        )}
 
         {status === 'complete' && (
-          <div
-            className="text-center py-12"
-            data-testid="download-complete"
-          >
-            <p className="text-green-600 mb-2">ダウンロード完了</p>
+          <div data-testid="download-complete">
+            <div className="text-center py-4 bg-green-50 rounded-lg mb-4">
+              <p className="text-green-600 font-medium">ダウンロード完了</p>
+            </div>
+            {candidates.length > 0 && <PreviewGrid images={candidates} />}
           </div>
         )}
 
