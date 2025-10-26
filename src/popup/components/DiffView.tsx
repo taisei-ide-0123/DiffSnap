@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Download, Sparkles } from 'lucide-react'
 import type { ImageSnapshot } from '@/shared/types'
+import { formatImageSize } from '@/lib/image-utils'
 
 // ImageSnapshotから差分表示に必要なフィールドのみを抽出
 type DiffImageData = Pick<ImageSnapshot, 'url' | 'width' | 'height' | 'alt' | 'hash'>
@@ -165,8 +166,8 @@ const ProTierDiffView = ({
           <div className="p-2 max-h-96 overflow-y-auto">
             {newImages.length > 0 ? (
               <div className="grid grid-cols-2 gap-1" role="list" aria-label="新規画像一覧">
-                {newImages.map((image, index) => (
-                  <DiffImageCard key={`new-${image.hash}-${index}`} image={image} isNew={true} />
+                {newImages.map((image) => (
+                  <DiffImageCard key={`new-${image.hash}`} image={image} isNew={true} />
                 ))}
               </div>
             ) : (
@@ -186,8 +187,8 @@ const ProTierDiffView = ({
           <div className="p-2 max-h-96 overflow-y-auto">
             {existingImages.length > 0 ? (
               <div className="grid grid-cols-2 gap-1" role="list" aria-label="既存画像一覧">
-                {existingImages.map((image, index) => (
-                  <DiffImageCard key={`existing-${image.hash}-${index}`} image={image} isNew={false} />
+                {existingImages.map((image) => (
+                  <DiffImageCard key={`existing-${image.hash}`} image={image} isNew={false} />
                 ))}
               </div>
             ) : (
@@ -238,9 +239,7 @@ const DiffImageCard = ({ image, isNew }: DiffImageCardProps) => {
   const borderColor = isNew ? 'border-green-400' : 'border-gray-300'
   const opacity = isNew ? 'opacity-100' : 'opacity-60'
 
-  const sizeText = image.width && image.height
-    ? `${image.width} × ${image.height}`
-    : undefined
+  const sizeText = formatImageSize(image.width, image.height)
 
   return (
     <div

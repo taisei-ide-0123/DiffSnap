@@ -1,10 +1,14 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import userEvent from '@testing-library/user-event'
 import { DiffView } from './DiffView'
 
 describe('DiffView', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   const mockNewImages = [
     {
       url: 'https://example.com/new1.jpg',
