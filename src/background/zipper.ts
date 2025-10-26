@@ -18,12 +18,16 @@ import { makeFilename, deconflict } from '@/lib/filename'
  * ZIP generation error types
  */
 export class ZipError extends Error {
+  public cause?: unknown
+
   constructor(
     message: string,
-    public code: string
+    public code: string,
+    cause?: unknown
   ) {
     super(message)
     this.name = 'ZipError'
+    this.cause = cause
   }
 }
 
@@ -111,12 +115,9 @@ export const createZip = async (
   let cumulativeSize = 0
 
   // Add each image to ZIP
-  for (let i = 0; i < images.length; i++) {
-    const image = images[i]
-    if (!image) continue
-
+  for (const image of images) {
     // Generate filename from template
-    let filename = makeFilename(options.template, image.snapshot, i + 1, options.pageUrl)
+    let filename = makeFilename(options.template, image.snapshot, images.indexOf(image) + 1, options.pageUrl)
 
     // Deconflict filename
     filename = deconflict(filename, existingFilenames)
@@ -126,7 +127,7 @@ export const createZip = async (
     cumulativeSize += image.blob.size
     if (cumulativeSize > ZIP_SIZE_LIMIT) {
       throw new ZipError(
-        `ZIP size would exceed limit of ${ZIP_SIZE_LIMIT} bytes (${Math.round(ZIP_SIZE_LIMIT / 1024 / 1024)}MB)`,
+        `ZIP size would exceed limit of ${ZIP_SIZE_LIMIT} bytes (1GB)`,
         'ZIP_SIZE_LIMIT_EXCEEDED'
       )
     }
@@ -148,7 +149,8 @@ export const createZip = async (
   } catch (error) {
     throw new ZipError(
       `Failed to generate ZIP: ${error instanceof Error ? error.message : String(error)}`,
-      'ZIP_GENERATION_FAILED'
+      'ZIP_GENERATION_FAILED',
+      error
     )
   }
 
@@ -188,13 +190,14 @@ export interface DownloadOptions {
  * @param blob - Blob to download
  * @param filename - Download filename
  * @param options - Download options
+ * @returns Download ID for monitoring/canceling download
  * @throws {Error} When download fails
  */
 export const download = async (
   blob: Blob,
   filename: string,
   options: DownloadOptions = {}
-): Promise<void> => {
+): Promise<number> => {
   const { saveAs = true, revokeTimeout = 60000 } = options
 
   // Create blob URL
@@ -215,6 +218,8 @@ export const download = async (
       URL.revokeObjectURL(url)
       console.log(`Blob URL revoked: ${url}`)
     }, revokeTimeout)
+
+    return downloadId
   } catch (error) {
     // Revoke URL immediately on error
     URL.revokeObjectURL(url)

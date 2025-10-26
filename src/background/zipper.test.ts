@@ -167,7 +167,7 @@ describe('createZip', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(ZipError)
       expect((error as ZipError).code).toBe('ZIP_SIZE_LIMIT_EXCEEDED')
-      expect((error as ZipError).message).toContain('1024MB')
+      expect((error as ZipError).message).toContain('1GB')
     }
   })
 
@@ -320,8 +320,9 @@ describe('download', () => {
     const blob = new Blob(['test-data'])
     const filename = 'test.zip'
 
-    await download(blob, filename)
+    const downloadId = await download(blob, filename)
 
+    expect(downloadId).toBe(1)
     expect(mockDownload).toHaveBeenCalledWith({
       url: 'blob:mock-url',
       filename: 'test.zip',
@@ -335,8 +336,9 @@ describe('download', () => {
     const blob = new Blob(['test-data'])
     const filename = 'test.zip'
 
-    await download(blob, filename, { saveAs: false })
+    const downloadId = await download(blob, filename, { saveAs: false })
 
+    expect(downloadId).toBe(1)
     expect(mockDownload).toHaveBeenCalledWith({
       url: 'blob:mock-url',
       filename: 'test.zip',
