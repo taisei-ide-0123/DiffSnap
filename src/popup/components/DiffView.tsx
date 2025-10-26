@@ -1,10 +1,16 @@
 import { useState } from 'react'
 import { Download, Sparkles } from 'lucide-react'
-import type { ImageSnapshot } from '@/shared/types'
 import { formatImageSize } from '@/lib/image-utils'
 
-// ImageSnapshotから差分表示に必要なフィールドのみを抽出
-type DiffImageData = Pick<ImageSnapshot, 'url' | 'width' | 'height' | 'alt' | 'hash'>
+// ImageSnapshotから差分表示に必要なフィールドのみを定義
+// width/heightはImageSnapshotでは必須（index.ts:136-137）
+interface DiffImageData {
+  url: string
+  width: number
+  height: number
+  alt?: string
+  hash: string
+}
 
 interface DiffViewProps {
   newImages: DiffImageData[]
@@ -157,9 +163,9 @@ const ProTierDiffView = ({
       </div>
 
       <div className="grid grid-cols-2 gap-0.5 bg-gray-200">
-        <div className="bg-white">
+        <div className="bg-white" role="region" aria-labelledby="new-images-heading">
           <div className="px-3 py-2 bg-green-50 border-b border-green-200">
-            <h3 className="text-xs font-semibold text-green-800 uppercase tracking-wide">
+            <h3 id="new-images-heading" className="text-xs font-semibold text-green-800 uppercase tracking-wide">
               新規画像 ({newImages.length})
             </h3>
           </div>
@@ -178,9 +184,9 @@ const ProTierDiffView = ({
           </div>
         </div>
 
-        <div className="bg-white">
+        <div className="bg-white" role="region" aria-labelledby="existing-images-heading">
           <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
-            <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+            <h3 id="existing-images-heading" className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
               既存画像 ({existingImages.length})
             </h3>
           </div>
