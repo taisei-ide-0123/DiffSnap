@@ -378,7 +378,7 @@ describe('DiffView', () => {
       })
     })
 
-    it('displays error state when image fails to load', () => {
+    it('displays error state when image fails to load', async () => {
       const { container } = render(
         <DiffView
           newImages={mockNewImages}
@@ -393,7 +393,7 @@ describe('DiffView', () => {
 
       img.dispatchEvent(new Event('error'))
 
-      waitFor(() => {
+      await waitFor(() => {
         expect(screen.getByText(/読込失敗/)).toBeInTheDocument()
       })
     })
