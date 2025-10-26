@@ -167,7 +167,7 @@ const ProTierDiffView = ({
             {newImages.length > 0 ? (
               <div className="grid grid-cols-2 gap-1" role="list" aria-label="新規画像一覧">
                 {newImages.map((image) => (
-                  <DiffImageCard key={`new-${image.hash}`} image={image} isNew={true} />
+                  <DiffImageCard key={`new-${image.hash}-${image.url}`} image={image} isNew={true} />
                 ))}
               </div>
             ) : (
@@ -188,7 +188,7 @@ const ProTierDiffView = ({
             {existingImages.length > 0 ? (
               <div className="grid grid-cols-2 gap-1" role="list" aria-label="既存画像一覧">
                 {existingImages.map((image) => (
-                  <DiffImageCard key={`existing-${image.hash}`} image={image} isNew={false} />
+                  <DiffImageCard key={`existing-${image.hash}-${image.url}`} image={image} isNew={false} />
                 ))}
               </div>
             ) : (
@@ -286,7 +286,7 @@ const DiffImageCard = ({ image, isNew }: DiffImageCardProps) => {
       {isHovered && isLoaded && !hasError && (
         <div
           className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white text-xs p-1 transition-opacity duration-200"
-          role="tooltip"
+          aria-live="polite"
         >
           {sizeText && (
             <div className="font-semibold text-center">{sizeText}</div>

@@ -129,7 +129,7 @@ const PreviewCard = ({ image }: PreviewCardProps) => {
       {isHovered && isLoaded && !hasError && (
         <div
           className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white text-xs p-2 transition-opacity duration-200"
-          role="tooltip"
+          aria-live="polite"
         >
           {sizeText && (
             <div className="font-semibold mb-1">{sizeText}</div>
