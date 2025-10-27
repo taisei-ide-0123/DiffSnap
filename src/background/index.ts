@@ -4,6 +4,7 @@
 import type { ContentToBackgroundMessage, PopupToBackgroundMessage } from '../shared/types'
 import { initKeepAlive, handleKeepAliveAlarm } from './keep-alive'
 import { handleMessage } from './message-router'
+import { revokeAllManagedBlobUrls } from '../lib/blob-url-manager'
 
 console.log('DiffSnap background service worker initialized')
 
@@ -59,3 +60,13 @@ chrome.runtime.onInstalled.addListener((details) => {
   }
   // Keep-Alive初期化は起動時に一度実行されるため、ここでは不要
 })
+
+// Service Worker終了時のクリーンアップ
+// MV3では onSuspend は非推奨だが、代替手段がないため使用
+// タイムアウトを30秒以下に設定することで、SW終了前に確実にクリーンアップ
+if (chrome.runtime.onSuspend) {
+  chrome.runtime.onSuspend.addListener(() => {
+    console.log('[BlobUrlManager] Service Worker suspending, cleaning up blob URLs')
+    revokeAllManagedBlobUrls()
+  })
+}

@@ -7,6 +7,36 @@
  * - ストレージ制限の回避
  */
 
+import type { ImageCandidate, ImageSnapshot } from '../shared/types'
+
+/**
+ * ImageCandidate型ガード
+ */
+export const isImageCandidate = (item: unknown): item is ImageCandidate => {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'url' in item &&
+    typeof (item as { url: unknown }).url === 'string' &&
+    'source' in item &&
+    typeof (item as { source: unknown }).source === 'string'
+  )
+}
+
+/**
+ * ImageSnapshot型ガード
+ */
+export const isImageSnapshot = (item: unknown): item is ImageSnapshot => {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    'hash' in item &&
+    typeof (item as { hash: unknown }).hash === 'string' &&
+    'firstSeenAt' in item &&
+    typeof (item as { firstSeenAt: unknown }).firstSeenAt === 'number'
+  )
+}
+
 /**
  * オブジェクトから不要なプロパティを除去
  *
@@ -18,13 +48,10 @@ export const removeUnnecessaryKeys = <T extends Record<string, unknown>>(
   obj: T,
   keysToRemove: string[]
 ): Partial<T> => {
-  const compressed = { ...obj }
-
-  for (const key of keysToRemove) {
-    delete compressed[key]
-  }
-
-  return compressed
+  const keysToRemoveSet = new Set(keysToRemove)
+  return Object.fromEntries(
+    Object.entries(obj).filter(([key]) => !keysToRemoveSet.has(key))
+  ) as Partial<T>
 }
 
 /**
@@ -45,9 +72,10 @@ export const compressArray = <T extends Record<string, unknown>>(
  * - alt: alt属性（サイズが大きい場合がある）
  */
 export const compressImageCandidate = (
-  candidate: Record<string, unknown>
-): Partial<Record<string, unknown>> => {
-  return removeUnnecessaryKeys(candidate, ['source', 'alt'])
+  candidate: ImageCandidate
+): Omit<ImageCandidate, 'source' | 'alt'> => {
+  const { source: _source, alt: _alt, ...rest } = candidate
+  return rest
 }
 
 /**
@@ -57,9 +85,10 @@ export const compressImageCandidate = (
  * - context: Phase 2機能（MVP では未使用）
  */
 export const compressImageSnapshot = (
-  snapshot: Record<string, unknown>
-): Partial<Record<string, unknown>> => {
-  return removeUnnecessaryKeys(snapshot, ['context'])
+  snapshot: ImageSnapshot
+): Omit<ImageSnapshot, 'context'> => {
+  const { context: _context, ...rest } = snapshot
+  return rest
 }
 
 /**
@@ -77,14 +106,11 @@ export const compressCheckpointData = (
     // 配列の場合は各要素を圧縮
     if (Array.isArray(value)) {
       compressed[key] = value.map((item) => {
-        if (typeof item === 'object' && item !== null) {
-          // ImageCandidate または ImageSnapshot の場合
-          if ('url' in item && 'source' in item) {
-            return compressImageCandidate(item as Record<string, unknown>)
-          }
-          if ('hash' in item && 'firstSeenAt' in item) {
-            return compressImageSnapshot(item as Record<string, unknown>)
-          }
+        if (isImageCandidate(item)) {
+          return compressImageCandidate(item)
+        }
+        if (isImageSnapshot(item)) {
+          return compressImageSnapshot(item)
         }
         return item
       })

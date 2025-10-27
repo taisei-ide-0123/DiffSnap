@@ -9,6 +9,7 @@ import {
   isWithinStorageLimit,
   cleanupOldData,
 } from './storage-optimizer'
+import type { ImageCandidate } from '../shared/types'
 
 describe('storage-optimizer', () => {
   describe('removeUnnecessaryKeys', () => {
@@ -63,7 +64,7 @@ describe('storage-optimizer', () => {
 
   describe('compressImageCandidate', () => {
     it('source と alt を除去する', () => {
-      const candidate = {
+      const candidate: ImageCandidate = {
         url: 'https://example.com/image.jpg',
         source: 'img',
         width: 800,
