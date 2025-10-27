@@ -106,6 +106,9 @@ export const compressImageCandidate = (
  *
  * 不要なメタデータを除去:
  * - context: Phase 2機能（MVP では未使用）
+ *
+ * @param snapshot - 圧縮前のImageSnapshot（contextが含まれる場合がある）
+ * @returns 圧縮されたImageSnapshot（contextを必ず除去）
  */
 export const compressImageSnapshot = (
   snapshot: ImageSnapshot

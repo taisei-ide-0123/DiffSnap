@@ -32,6 +32,9 @@ export interface ThumbnailOptions {
  *
  * メモリ効率化のため、プレビュー用に縮小画像を生成します。
  *
+ * ⚠️ **DOM環境専用**: Content ScriptまたはPopupからのみ呼び出し可能。
+ * Service Worker (Background Script) からは使用不可。
+ *
  * @param imageUrl - 元画像のURL
  * @param options - サムネイル生成オプション
  * @returns サムネイル画像のBlob URL、失敗時はnull
@@ -40,6 +43,12 @@ export const createThumbnail = async (
   imageUrl: string,
   options: ThumbnailOptions = {}
 ): Promise<string | null> => {
+  // Service Worker環境チェック
+  if (typeof document === 'undefined') {
+    console.warn('createThumbnail: DOM API not available in this context')
+    return null
+  }
+
   const {
     maxWidth = 200,
     maxHeight = 200,

@@ -61,12 +61,13 @@ chrome.runtime.onInstalled.addListener((details) => {
   // Keep-Alive初期化は起動時に一度実行されるため、ここでは不要
 })
 
-// Service Worker終了時のクリーンアップ
-// MV3では onSuspend は非推奨だが、代替手段がないため使用
-// タイムアウトを30秒以下に設定することで、SW終了前に確実にクリーンアップ
+// Service Worker終了時のベストエフォート・クリーンアップ
+// MV3では onSuspend は非推奨かつ確実性が低い（メモリ不足時やクラッシュ時は発火しない）
+// BlobUrlManager のタイムアウトベース自動解放（60秒）と併用することでメモリリークを防ぐ
+// このリスナーはバックアップ機能として位置づけ、主要な解放はタイムアウトに依存する
 if (chrome.runtime.onSuspend) {
   chrome.runtime.onSuspend.addListener(() => {
-    console.log('[BlobUrlManager] Service Worker suspending, cleaning up blob URLs')
+    console.log('[BlobUrlManager] Service Worker suspending (best-effort cleanup)')
     revokeAllManagedBlobUrls()
   })
 }

@@ -106,6 +106,23 @@ describe('storage-optimizer', () => {
       })
       expect(result).not.toHaveProperty('context')
     })
+
+    it('context が undefined でも正常に動作する', () => {
+      const snapshot = {
+        hash: 'abc123',
+        url: 'https://example.com/image.jpg',
+        width: 800,
+        height: 600,
+        firstSeenAt: Date.now(),
+        // context なし
+      }
+
+      const result = compressImageSnapshot(snapshot)
+
+      expect(result).not.toHaveProperty('context')
+      expect(result.hash).toBe('abc123')
+      expect(result.url).toBe('https://example.com/image.jpg')
+    })
   })
 
   describe('compressCheckpointData', () => {
