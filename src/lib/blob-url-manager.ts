@@ -10,7 +10,7 @@
 interface BlobUrlEntry {
   url: string
   createdAt: number
-  timeoutId?: number
+  timeoutId?: ReturnType<typeof setTimeout>
 }
 
 /**
@@ -39,7 +39,7 @@ export class BlobUrlManager {
     const actualTimeout = timeout ?? this.defaultTimeout
 
     // タイムアウトIDを設定
-    const timeoutId = window.setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       this.revoke(url)
     }, actualTimeout)
 

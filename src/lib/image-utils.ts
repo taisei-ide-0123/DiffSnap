@@ -2,6 +2,8 @@
  * Image utility functions for formatting and display
  */
 
+import { createManagedBlobUrl } from './blob-url-manager'
+
 /**
  * Format image dimensions as "width × height" string
  * @param width - Image width in pixels
@@ -82,10 +84,8 @@ export const createThumbnail = async (
     // Blobに変換してマネージドBlob URLを作成
     return new Promise<string | null>((resolve) => {
       canvas.toBlob(
-        async (blob) => {
+        (blob) => {
           if (blob) {
-            // Dynamically import to avoid circular dependency
-            const { createManagedBlobUrl } = await import('./blob-url-manager')
             resolve(createManagedBlobUrl(blob))
           } else {
             resolve(null)

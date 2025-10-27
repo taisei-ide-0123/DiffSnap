@@ -66,9 +66,15 @@ export const removeUnnecessaryKeys = <T extends Record<string, unknown>>(
   keysToRemove: string[]
 ): Partial<T> => {
   const keysToRemoveSet = new Set(keysToRemove)
-  return Object.fromEntries(
-    Object.entries(obj).filter(([key]) => !keysToRemoveSet.has(key))
-  ) as Partial<T>
+  const result = {} as Partial<T>
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (!keysToRemoveSet.has(key)) {
+      result[key as keyof T] = value as T[keyof T]
+    }
+  }
+
+  return result
 }
 
 /**
