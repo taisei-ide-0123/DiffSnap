@@ -145,3 +145,16 @@ export const revokeManagedBlobUrl = (url: string): void => {
 export const revokeAllManagedBlobUrls = (): void => {
   getBlobUrlManager().revokeAll()
 }
+
+/**
+ * グローバルBlobUrlManagerインスタンスをリセット（テスト用）
+ *
+ * テスト間でのBlob URL残留を防ぎ、テストの独立性を保証します。
+ * 本番コードから呼び出す必要はありません。
+ */
+export const resetBlobUrlManager = (): void => {
+  if (globalBlobUrlManager) {
+    globalBlobUrlManager.cleanup()
+    globalBlobUrlManager = null
+  }
+}

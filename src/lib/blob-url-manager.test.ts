@@ -5,6 +5,7 @@ import {
   createManagedBlobUrl,
   revokeManagedBlobUrl,
   revokeAllManagedBlobUrls,
+  resetBlobUrlManager,
 } from './blob-url-manager'
 
 // Mock URL.createObjectURL and URL.revokeObjectURL for testing
@@ -192,6 +193,7 @@ describe('Global blob url functions', () => {
 
   afterEach(() => {
     revokeAllManagedBlobUrls()
+    resetBlobUrlManager()
     vi.restoreAllMocks()
   })
 
