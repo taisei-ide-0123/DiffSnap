@@ -79,12 +79,14 @@ export const createThumbnail = async (
     ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(img, 0, 0, width, height)
 
-    // Blobに変換
+    // Blobに変換してマネージドBlob URLを作成
     return new Promise<string | null>((resolve) => {
       canvas.toBlob(
-        (blob) => {
+        async (blob) => {
           if (blob) {
-            resolve(URL.createObjectURL(blob))
+            // Dynamically import to avoid circular dependency
+            const { createManagedBlobUrl } = await import('./blob-url-manager')
+            resolve(createManagedBlobUrl(blob))
           } else {
             resolve(null)
           }

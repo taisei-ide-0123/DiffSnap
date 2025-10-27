@@ -4,6 +4,8 @@
  * @module background/downloader
  */
 
+import { getBlobUrlManager } from '../lib/blob-url-manager'
+
 export interface DownloadOptions {
   blob: Blob
   filename: string
@@ -27,12 +29,12 @@ const REVOKE_TIMEOUT_MS = 60000 // 60 seconds
 export const download = async (options: DownloadOptions): Promise<DownloadResult> => {
   const { blob, filename, saveAs = true } = options
 
+  const blobUrlManager = getBlobUrlManager()
   let blobUrl: string | null = null
-  let revokeTimeoutId: ReturnType<typeof setTimeout> | null = null
 
   try {
-    // Create blob URL
-    blobUrl = URL.createObjectURL(blob)
+    // Create managed blob URL with automatic timeout cleanup
+    blobUrl = blobUrlManager.create(blob, REVOKE_TIMEOUT_MS)
 
     // Start download
     const downloadId = await chrome.downloads.download({
@@ -41,26 +43,14 @@ export const download = async (options: DownloadOptions): Promise<DownloadResult
       saveAs,
     })
 
-    // Schedule URL cleanup after 60 seconds
-    // Capture the URL value to avoid race conditions with closure
-    const urlToRevoke = blobUrl
-    revokeTimeoutId = setTimeout(() => {
-      URL.revokeObjectURL(urlToRevoke)
-    }, REVOKE_TIMEOUT_MS)
-
     return {
       success: true,
       downloadId,
     }
   } catch (error) {
-    // Cancel scheduled revocation if it exists
-    if (revokeTimeoutId !== null) {
-      clearTimeout(revokeTimeoutId)
-    }
-
     // Clean up blob URL immediately on error
     if (blobUrl) {
-      URL.revokeObjectURL(blobUrl)
+      blobUrlManager.revoke(blobUrl)
     }
 
     const errorMessage = error instanceof Error ? error.message : '不明なダウンロードエラー'

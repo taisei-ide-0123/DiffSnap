@@ -10,7 +10,7 @@
 interface BlobUrlEntry {
   url: string
   createdAt: number
-  timeoutId?: NodeJS.Timeout
+  timeoutId?: number
 }
 
 /**
@@ -41,7 +41,7 @@ export class BlobUrlManager {
     // タイムアウトIDを設定
     const timeoutId = setTimeout(() => {
       this.revoke(url)
-    }, actualTimeout)
+    }, actualTimeout) as unknown as number
 
     this.urls.set(url, {
       url,
