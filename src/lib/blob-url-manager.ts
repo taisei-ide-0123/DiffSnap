@@ -39,9 +39,9 @@ export class BlobUrlManager {
     const actualTimeout = timeout ?? this.defaultTimeout
 
     // タイムアウトIDを設定
-    const timeoutId = setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       this.revoke(url)
-    }, actualTimeout) as unknown as number
+    }, actualTimeout)
 
     this.urls.set(url, {
       url,

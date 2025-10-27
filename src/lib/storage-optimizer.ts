@@ -7,19 +7,36 @@
  * - ストレージ制限の回避
  */
 
-import type { ImageCandidate, ImageSnapshot } from '../shared/types'
+import type { ImageCandidate, ImageSnapshot, ImageSource } from '../shared/types'
+
+/**
+ * 有効なImageSource値の定数配列
+ */
+const VALID_IMAGE_SOURCES: readonly ImageSource[] = [
+  'img',
+  'picture',
+  'srcset',
+  'css-bg',
+  'canvas',
+  'svg',
+  'video',
+  'iframe',
+] as const
 
 /**
  * ImageCandidate型ガード
  */
 export const isImageCandidate = (item: unknown): item is ImageCandidate => {
+  if (typeof item !== 'object' || item === null) {
+    return false
+  }
+
+  const candidate = item as Partial<ImageCandidate>
+
   return (
-    typeof item === 'object' &&
-    item !== null &&
-    'url' in item &&
-    typeof (item as { url: unknown }).url === 'string' &&
-    'source' in item &&
-    typeof (item as { source: unknown }).source === 'string'
+    typeof candidate.url === 'string' &&
+    typeof candidate.source === 'string' &&
+    VALID_IMAGE_SOURCES.includes(candidate.source as ImageSource)
   )
 }
 
