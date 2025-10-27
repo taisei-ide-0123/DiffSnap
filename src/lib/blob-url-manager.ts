@@ -38,6 +38,12 @@ export class BlobUrlManager {
     const url = URL.createObjectURL(blob)
     const actualTimeout = timeout ?? this.defaultTimeout
 
+    // 既存のエントリがある場合は古いタイムアウトをクリア
+    const existingEntry = this.urls.get(url)
+    if (existingEntry?.timeoutId) {
+      clearTimeout(existingEntry.timeoutId)
+    }
+
     // タイムアウトIDを設定
     const timeoutId = setTimeout(() => {
       this.revoke(url)
