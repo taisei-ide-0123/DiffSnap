@@ -123,6 +123,17 @@ export type PopupToBackgroundMessage =
   | VerifyLicenseMessage
   | CleanupDataMessage
 
+// Response types for Settings UI
+export interface VerifyLicenseResponse {
+  success: boolean
+  error?: string
+}
+
+export interface CleanupDataResponse {
+  success: boolean
+  deletedCount?: number
+}
+
 // コレクションオプション
 export interface CollectionOptions {
   enableScroll: boolean // 自動スクロール有効化

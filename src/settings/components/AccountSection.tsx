@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Crown, Key, ExternalLink, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
+import type { VerifyLicenseResponse } from '@/shared/types'
 
 interface AccountSectionProps {
   tier: 'free' | 'pro'
@@ -49,10 +50,10 @@ export const AccountSection = ({
 
     try {
       // Call background service to verify
-      const response = await chrome.runtime.sendMessage({
+      const response = (await chrome.runtime.sendMessage({
         type: 'VERIFY_LICENSE',
         payload: { key: keyInput.trim() },
-      })
+      })) as VerifyLicenseResponse
 
       if (response.success) {
         setVerificationStatus('success')

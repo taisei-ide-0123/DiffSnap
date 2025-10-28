@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Trash2, AlertCircle, Loader2 } from 'lucide-react'
+import type { CleanupDataResponse } from '@/shared/types'
 
 export const AdvancedSection = () => {
   const [isCleaningUp, setIsCleaningUp] = useState(false)
@@ -20,9 +21,9 @@ export const AdvancedSection = () => {
 
     try {
       // Send cleanup message to background
-      const response = await chrome.runtime.sendMessage({
+      const response = (await chrome.runtime.sendMessage({
         type: 'CLEANUP_DATA',
-      })
+      })) as CleanupDataResponse
 
       if (response.success) {
         setCleanupResult(`✅ ${response.deletedCount} 件のレコードを削除しました`)
