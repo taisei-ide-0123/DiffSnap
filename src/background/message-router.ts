@@ -24,6 +24,7 @@ import { ImageCollector, type CollectionResult } from './collector'
 import { computeDiff, updateRecord, type ImageWithData } from './diff-engine'
 import { createZip } from './zipper'
 import { checkTier, checkFreeLimit } from './license-validator'
+import { getAllRecords, clearDatabase } from '../lib/db'
 
 /**
  * メッセージハンドラの型定義
@@ -449,6 +450,65 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
       return true
     }
 
+    case 'VERIFY_LICENSE': {
+      const { key } = message.payload
+      console.log('VERIFY_LICENSE request')
+
+      // 非同期で検証を実行
+      ;(async () => {
+        try {
+          // ライセンスキーを設定に保存
+          const config = await chrome.storage.sync.get(['config'])
+          await chrome.storage.sync.set({
+            config: {
+              ...(config.config ?? {}),
+              licenseKey: key,
+            },
+          })
+
+          // キャッシュをクリアして再検証を強制
+          await chrome.storage.local.remove(['lastVerification'])
+
+          // Tier確認（内部でAPI検証が行われる）
+          const tier = await checkTier()
+
+          if (tier === 'pro') {
+            sendResponse({ success: true })
+          } else {
+            sendResponse({ success: false, error: 'ライセンスキーが無効です' })
+          }
+        } catch (error) {
+          console.error('[VERIFY_LICENSE] Error:', error)
+          sendResponse({ success: false, error: 'ライセンス検証に失敗しました' })
+        }
+      })()
+
+      return true // 非同期レスポンス
+    }
+
+    case 'CLEANUP_DATA': {
+      console.log('CLEANUP_DATA request')
+
+      // 非同期でクリーンアップを実行
+      ;(async () => {
+        try {
+          // IndexedDBの全レコードを削除
+          const allRecords = await getAllRecords()
+          const count = allRecords.length
+
+          await clearDatabase()
+
+          console.log(`[CLEANUP_DATA] Deleted ${count} records`)
+          sendResponse({ success: true, deletedCount: count })
+        } catch (error) {
+          console.error('[CLEANUP_DATA] Error:', error)
+          sendResponse({ success: false, error: 'データクリーンアップに失敗しました' })
+        }
+      })()
+
+      return true // 非同期レスポンス
+    }
+
     default: {
       // 型安全性チェック（到達不可能）
       const _exhaustive: never = message
@@ -507,7 +567,9 @@ export const handleMessage = (
   if (
     message.type === 'START_COLLECTION' ||
     message.type === 'RETRY_FAILED' ||
-    message.type === 'CHECK_DIFF'
+    message.type === 'CHECK_DIFF' ||
+    message.type === 'VERIFY_LICENSE' ||
+    message.type === 'CLEANUP_DATA'
   ) {
     return handlePopupMessage(message as PopupToBackgroundMessage, sender, sendResponse) ?? true
   }

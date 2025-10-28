@@ -105,10 +105,34 @@ export interface CheckDiffMessage {
   url: string
 }
 
+export interface VerifyLicenseMessage {
+  type: 'VERIFY_LICENSE'
+  payload: {
+    key: string
+  }
+}
+
+export interface CleanupDataMessage {
+  type: 'CLEANUP_DATA'
+}
+
 export type PopupToBackgroundMessage =
   | StartCollectionMessage
   | RetryFailedMessage
   | CheckDiffMessage
+  | VerifyLicenseMessage
+  | CleanupDataMessage
+
+// Response types for Settings UI
+export interface VerifyLicenseResponse {
+  success: boolean
+  error?: string
+}
+
+export interface CleanupDataResponse {
+  success: boolean
+  deletedCount?: number
+}
 
 // コレクションオプション
 export interface CollectionOptions {
