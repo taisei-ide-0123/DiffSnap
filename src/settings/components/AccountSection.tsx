@@ -71,6 +71,13 @@ export const AccountSection = ({
     }
   }
 
+  // Handle Enter key press on license key input
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && keyInput.trim() && !isVerifying) {
+      handleVerifyKey()
+    }
+  }
+
   // Open upgrade page
   const handleUpgrade = () => {
     chrome.tabs.create({ url: 'https://diffsnap.io/pricing' })
@@ -138,6 +145,7 @@ export const AccountSection = ({
               type="text"
               value={keyInput}
               onChange={(e) => setKeyInput(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="XXXX-XXXX-XXXX-XXXX"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               aria-describedby="licenseKeyHelp"

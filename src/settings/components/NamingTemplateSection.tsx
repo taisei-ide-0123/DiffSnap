@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { FileText, Info } from 'lucide-react'
+import { evaluateTemplate } from '@/shared/utils/template'
 
 interface NamingTemplateSectionProps {
   template: string
@@ -48,8 +49,7 @@ const VARIABLES = [
 
 // Sample data for preview
 const getTodayDate = (): string => {
-  const parts = new Date().toISOString().split('T')
-  return parts[0] ?? ''
+  return new Date().toISOString().slice(0, 10)
 }
 
 const SAMPLE_DATA: Array<Record<string, string>> = [
@@ -81,25 +81,6 @@ const SAMPLE_DATA: Array<Record<string, string>> = [
     index: '003',
   },
 ]
-
-/**
- * Evaluate template with sample data
- */
-const evaluateTemplate = (template: string, data: Record<string, string>): string => {
-  let result = template
-
-  // Replace all variables
-  Object.entries(data).forEach(([key, value]) => {
-    const placeholder = `{${key}}`
-    const regex = new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g')
-    result = result.replace(regex, value || 'untitled')
-  })
-
-  // Check for remaining unreplaced variables
-  const hasInvalidVars = result.includes('{') && result.includes('}')
-
-  return hasInvalidVars ? `❌ ${result}` : result
-}
 
 export const NamingTemplateSection = ({
   template,
