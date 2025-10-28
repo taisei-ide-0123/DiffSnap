@@ -5,6 +5,7 @@ import type { ContentToBackgroundMessage, PopupToBackgroundMessage } from '../sh
 import { initKeepAlive, handleKeepAliveAlarm } from './keep-alive'
 import { handleMessage } from './message-router'
 import { revokeAllManagedBlobUrls } from '../lib/blob-url-manager'
+import { initLicenseChecker, handleLicenseCheckAlarm } from './license-validator'
 
 console.log('DiffSnap background service worker initialized')
 
@@ -31,6 +32,11 @@ initWithRetry().catch((err) => {
   // 致命的エラー: Service Workerは30秒で停止する可能性あり
 })
 
+// License checker初期化
+initLicenseChecker().catch((err) => {
+  console.error('License checker initialization failed:', err)
+})
+
 // Message handler
 chrome.runtime.onMessage.addListener(
   (
@@ -42,10 +48,14 @@ chrome.runtime.onMessage.addListener(
   }
 )
 
-// Alarms listener for Keep-Alive
+// Alarms listener for Keep-Alive and License Check
 chrome.alarms.onAlarm.addListener((alarm) => {
   handleKeepAliveAlarm(alarm).catch((err) => {
     console.error('Keep-Alive alarm handler error:', err)
+  })
+
+  handleLicenseCheckAlarm(alarm).catch((err) => {
+    console.error('License check alarm handler error:', err)
   })
 })
 

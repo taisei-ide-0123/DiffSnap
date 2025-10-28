@@ -108,10 +108,7 @@ export const ProgressBar = ({
             </div>
             <ul className="space-y-2 max-h-32 overflow-y-auto">
               {failedImages.map((failed, index) => (
-                <li
-                  key={`${failed.url}-${index}`}
-                  className="flex items-start gap-2 text-xs"
-                >
+                <li key={`${failed.url}-${index}`} className="flex items-start gap-2 text-xs">
                   <div className="flex-shrink-0 mt-0.5">{getErrorIcon(failed.errorType)}</div>
                   <div className="flex-1 min-w-0">
                     <p

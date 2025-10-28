@@ -17,7 +17,13 @@ import type {
   BackgroundToContentMessage,
   RunState,
   ImageSnapshot,
+  ImageCandidate,
+  CollectionOptions,
 } from '../shared/types'
+import { ImageCollector, type CollectionResult } from './collector'
+import { computeDiff, updateRecord, type ImageWithData } from './diff-engine'
+import { createZip } from './zipper'
+import { checkTier, checkFreeLimit } from './license-validator'
 
 /**
  * メッセージハンドラの型定義
@@ -27,6 +33,207 @@ type MessageHandler<T> = (
   sender: chrome.runtime.MessageSender,
   sendResponse: (response?: unknown) => void
 ) => boolean | void
+
+/**
+ * 収集状態管理（進行中の収集を追跡）
+ */
+interface CollectionState {
+  tabId: number
+  url: string
+  candidates: ImageCandidate[]
+  options: CollectionOptions
+  startedAt: number
+}
+
+// 進行中の収集を管理するMap
+const activeCollections = new Map<number, CollectionState>()
+
+/**
+ * 収集オーケストレーター
+ *
+ * フロー:
+ * 1. ライセンス検証（tier確認）
+ * 2. Free制限チェック
+ * 3. 画像収集（並列fetch + 去重）
+ * 4. 差分計算（Proのみ）
+ * 5. ZIP生成
+ * 6. ダウンロード実行
+ * 7. 完了通知
+ */
+const orchestrateCollection = async (
+  tabId: number,
+  url: string,
+  candidates: ImageCandidate[],
+  _options: CollectionOptions
+): Promise<void> => {
+  try {
+    // ステップ1: ライセンス検証
+    await sendStateUpdate({
+      tabId,
+      status: 'detecting',
+      total: candidates.length,
+      completed: 0,
+      failed: [],
+      zipSize: 0,
+    })
+
+    const tier = await checkTier()
+    console.log(`[orchestrateCollection] User tier: ${tier}`)
+
+    // ステップ2: Free制限チェック
+    if (tier === 'free') {
+      const withinLimit = await checkFreeLimit(candidates.length)
+      if (!withinLimit) {
+        await sendStateUpdate({
+          tabId,
+          status: 'error',
+          total: candidates.length,
+          completed: 0,
+          failed: [],
+          zipSize: 0,
+        })
+        // TODO: 制限超過通知（chrome.notifications API使用）
+        console.warn('[orchestrateCollection] Free tier limit exceeded')
+        return
+      }
+    }
+
+    // ステップ3: 画像収集
+    await sendStateUpdate({
+      tabId,
+      status: 'fetching',
+      total: candidates.length,
+      completed: 0,
+      failed: [],
+      zipSize: 0,
+    })
+
+    const collector = new ImageCollector({ tabId })
+    const collectionResult: CollectionResult = await collector.collect(candidates)
+
+    console.log(`[orchestrateCollection] Collection complete:`, {
+      fetched: collectionResult.stats.fetched,
+      failed: collectionResult.stats.failed,
+      deduplicated: collectionResult.stats.deduplicated,
+    })
+
+    // ステップ4: 差分計算（Proのみ）
+    let imagesToZip = collectionResult.images
+
+    if (tier === 'pro') {
+      console.log(`[orchestrateCollection] Computing diff (Pro feature)`)
+
+      const imagesWithData: ImageWithData[] = collectionResult.images.map((img) => ({
+        blob: img.blob,
+        url: img.snapshot.url,
+        width: img.snapshot.width,
+        height: img.snapshot.height,
+        alt: img.snapshot.alt,
+        context: img.snapshot.context,
+      }))
+
+      const diffResult = await computeDiff(url, imagesWithData)
+
+      // 差分結果をPopupに通知
+      await sendDiffResult(diffResult.newImages, diffResult.existingImages, diffResult.isFirstVisit)
+
+      // 新規画像のみをZIPに含める
+      imagesToZip = collectionResult.images.filter((img) =>
+        diffResult.newImages.some((newImg) => newImg.hash === img.hash)
+      )
+
+      // 台帳更新（新規画像を保存）
+      await updateRecord(url, diffResult.newImages)
+
+      console.log(`[orchestrateCollection] Diff complete:`, {
+        new: diffResult.newImages.length,
+        existing: diffResult.existingImages.length,
+        isFirstVisit: diffResult.isFirstVisit,
+      })
+    }
+
+    // 画像がない場合は終了
+    if (imagesToZip.length === 0) {
+      await sendStateUpdate({
+        tabId,
+        status: 'complete',
+        total: candidates.length,
+        completed: collectionResult.stats.fetched,
+        failed: collectionResult.failed,
+        zipSize: 0,
+      })
+      console.log('[orchestrateCollection] No images to zip')
+      return
+    }
+
+    // ステップ5: ZIP生成
+    await sendStateUpdate({
+      tabId,
+      status: 'zipping',
+      total: candidates.length,
+      completed: collectionResult.stats.fetched,
+      failed: collectionResult.failed,
+      zipSize: 0,
+    })
+
+    // 設定からファイル名テンプレートを取得（デフォルトは"default"）
+    const config = await chrome.storage.sync.get(['namingTemplate'])
+    const template = config.namingTemplate ?? '{date}-{domain}-{w}x{h}-{index}'
+
+    const zipResult = await createZip(imagesToZip, {
+      template,
+      pageUrl: url,
+      zipFilename: 'images',
+    })
+
+    console.log(`[orchestrateCollection] ZIP created:`, {
+      fileCount: zipResult.fileCount,
+      size: zipResult.size,
+    })
+
+    // ステップ6: ダウンロード実行
+    const blobUrl = URL.createObjectURL(zipResult.blob)
+
+    const downloadId = await chrome.downloads.download({
+      url: blobUrl,
+      filename: zipResult.filename,
+      saveAs: true,
+    })
+
+    // Blob URLを60秒後に解放（メモリリーク防止）
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl)
+    }, 60000)
+
+    // ステップ7: 完了通知
+    await sendStateUpdate({
+      tabId,
+      status: 'complete',
+      total: candidates.length,
+      completed: collectionResult.stats.fetched,
+      failed: collectionResult.failed,
+      zipSize: zipResult.size,
+    })
+
+    await sendZipReady(downloadId)
+
+    console.log(`[orchestrateCollection] Collection orchestration complete`)
+  } catch (error) {
+    console.error('[orchestrateCollection] Error:', error)
+
+    await sendStateUpdate({
+      tabId,
+      status: 'error',
+      total: candidates.length,
+      completed: 0,
+      failed: [],
+      zipSize: 0,
+    })
+  } finally {
+    // 収集状態をクリーンアップ
+    activeCollections.delete(tabId)
+  }
+}
 
 /**
  * Content Scriptからのメッセージハンドラ
@@ -47,17 +254,28 @@ const handleContentMessage: MessageHandler<ContentToBackgroundMessage> = (
         return true
       }
 
-      console.log(
-        'Received IMAGES_DETECTED from tab:',
-        tabId,
-        'count:',
-        message.candidates.length
-      )
+      if (!tabId) {
+        console.error('IMAGES_DETECTED: tabId is undefined')
+        sendResponse({ status: 'ERROR', error: 'Invalid sender' })
+        return true
+      }
 
-      // TODO(Issue #13): 収集オーケストレーター連携実装
-      //   - 受信したcandidatesをIndexedDBに保存
-      //   - collectorOrchestrator.start(tabId, candidates)を呼び出し
-      //   - 進捗をsendStateUpdate()で通知
+      console.log('Received IMAGES_DETECTED from tab:', tabId, 'count:', message.candidates.length)
+
+      // 収集状態を保存（START_COLLECTIONで使用）
+      const collectionState: CollectionState = {
+        tabId,
+        url: sender.tab?.url ?? '',
+        candidates: message.candidates,
+        options: {
+          enableScroll: false,
+          maxScrollDepth: 20,
+          scrollTimeout: 15000,
+        },
+        startedAt: Date.now(),
+      }
+      activeCollections.set(tabId, collectionState)
+
       sendResponse({ status: 'OK', received: message.candidates.length })
       return true
     }
@@ -110,16 +328,59 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
 ) => {
   switch (message.type) {
     case 'START_COLLECTION': {
-      console.log('START_COLLECTION request:', {
-        tabId: message.tabId,
-        options: message.options,
-      })
+      const { tabId, options } = message
 
-      // TODO: Issue #13で収集オーケストレーター実装
-      // 現在は仮実装
+      console.log('START_COLLECTION request:', { tabId, options })
+
+      // 進行中の収集があるかチェック
+      const existingCollection = activeCollections.get(tabId)
+      if (existingCollection) {
+        console.log('Collection already in progress for tab:', tabId)
+        sendResponse({
+          status: 'ERROR',
+          error: 'Collection already in progress',
+        })
+        return true
+      }
+
+      // タブのURLと候補を取得
+      chrome.tabs
+        .get(tabId)
+        .then(async (tab) => {
+          if (!tab.url) {
+            throw new Error('Tab URL not available')
+          }
+
+          // Content Scriptに画像検出を依頼
+          await sendToContent(tabId, {
+            type: 'START_SCROLL',
+            options: {
+              maxDepth: options.maxScrollDepth,
+              timeout: options.scrollTimeout,
+            },
+          })
+
+          // 候補が既に検出されている場合は即座に開始
+          const state = activeCollections.get(tabId)
+          if (state && state.candidates.length > 0) {
+            // 非同期で収集開始（レスポンスはすぐ返す）
+            orchestrateCollection(tabId, tab.url, state.candidates, options).catch((err) => {
+              console.error('[START_COLLECTION] Orchestration failed:', err)
+            })
+          }
+        })
+        .catch((err) => {
+          console.error('[START_COLLECTION] Failed to get tab:', err)
+          sendResponse({
+            status: 'ERROR',
+            error: err instanceof Error ? err.message : 'Unknown error',
+          })
+        })
+
+      // 非同期処理中なので即座にOKを返す
       sendResponse({
         status: 'OK',
-        message: 'Collection started (placeholder)',
+        message: 'Collection started',
       })
       return true
     }
@@ -204,9 +465,7 @@ export const handleMessage = (
     message.type === 'SCROLL_TIMEOUT' ||
     message.type === 'DETECTION_ERROR'
   ) {
-    return (
-      handleContentMessage(message as ContentToBackgroundMessage, sender, sendResponse) ?? true
-    )
+    return handleContentMessage(message as ContentToBackgroundMessage, sender, sendResponse) ?? true
   }
 
   // Popupからのメッセージ
@@ -215,9 +474,7 @@ export const handleMessage = (
     message.type === 'RETRY_FAILED' ||
     message.type === 'CHECK_DIFF'
   ) {
-    return (
-      handlePopupMessage(message as PopupToBackgroundMessage, sender, sendResponse) ?? true
-    )
+    return handlePopupMessage(message as PopupToBackgroundMessage, sender, sendResponse) ?? true
   }
 
   // 未知のメッセージタイプ

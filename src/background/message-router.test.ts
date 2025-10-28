@@ -131,10 +131,41 @@ describe('Message Router', () => {
   })
 
   describe('Popup Messages', () => {
+    beforeEach(() => {
+      // chrome APIのモック（sendMessage以外も追加）
+      global.chrome = {
+        runtime: {
+          sendMessage: vi.fn().mockResolvedValue(undefined),
+        },
+        tabs: {
+          get: vi.fn().mockResolvedValue({
+            id: 123,
+            url: 'https://example.com',
+          }),
+          query: vi.fn().mockResolvedValue([{ id: 123, url: 'https://example.com' }]),
+          sendMessage: vi.fn().mockResolvedValue(undefined),
+        },
+        downloads: {
+          download: vi.fn().mockResolvedValue(12345),
+        },
+        storage: {
+          sync: {
+            get: vi.fn().mockResolvedValue({ namingTemplate: '{date}-{domain}-{index}' }),
+          },
+          local: {
+            get: vi.fn().mockResolvedValue({}),
+            set: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+      } as unknown as typeof chrome
+    })
+
     it('should handle START_COLLECTION message', () => {
+      // 別のtabIdを使用してIMAGES_DETECTEDテストとの競合を避ける
+      const uniqueTabId = 999
       const message: StartCollectionMessage = {
         type: 'START_COLLECTION',
-        tabId: 123,
+        tabId: uniqueTabId,
         options: {
           enableScroll: true,
           maxScrollDepth: 20,
@@ -142,12 +173,18 @@ describe('Message Router', () => {
         },
       }
 
+      // chrome.tabs.getのモックを更新
+      vi.mocked(chrome.tabs.get).mockResolvedValue({
+        id: uniqueTabId,
+        url: 'https://example.com',
+      } as chrome.tabs.Tab)
+
       const result = handleMessage(message, mockSender, mockSendResponse)
 
       expect(result).toBe(true)
       expect(mockSendResponse).toHaveBeenCalledWith({
         status: 'OK',
-        message: 'Collection started (placeholder)',
+        message: 'Collection started',
       })
     })
 
@@ -295,10 +332,7 @@ describe('Message Router', () => {
 
         await sendStateUpdate(state)
 
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'Failed to send STATE_UPDATE:',
-          error
-        )
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to send STATE_UPDATE:', error)
       })
     })
 
@@ -384,10 +418,10 @@ describe('Message Router', () => {
 
         await sendToContent(tabId, message)
 
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          'Message sent to content script:',
-          { tabId, type: 'START_SCROLL' }
-        )
+        expect(consoleLogSpy).toHaveBeenCalledWith('Message sent to content script:', {
+          tabId,
+          type: 'START_SCROLL',
+        })
       })
     })
   })

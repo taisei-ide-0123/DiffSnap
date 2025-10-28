@@ -35,9 +35,7 @@ export const Footer = ({
     }
   }
 
-  const downloadButtonText = isDownloading
-    ? BUTTON_TEXT.downloading
-    : BUTTON_TEXT.download
+  const downloadButtonText = isDownloading ? BUTTON_TEXT.downloading : BUTTON_TEXT.download
 
   return (
     <footer className="px-4 py-3 border-t border-gray-200 bg-white">

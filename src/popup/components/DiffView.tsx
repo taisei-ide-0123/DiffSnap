@@ -34,12 +34,14 @@ export const DiffView = ({
   const totalImages = newImages.length + existingImages.length
 
   if (tier === 'free') {
-    return <FreeTierDiffView
-      newCount={newImages.length}
-      totalCount={totalImages}
-      isFirstVisit={isFirstVisit}
-      onUpgrade={onUpgrade}
-    />
+    return (
+      <FreeTierDiffView
+        newCount={newImages.length}
+        totalCount={totalImages}
+        isFirstVisit={isFirstVisit}
+        onUpgrade={onUpgrade}
+      />
+    )
   }
 
   return (
@@ -84,11 +86,9 @@ const FreeTierDiffView = ({
               Proにアップグレードして差分機能を解放
             </h3>
             <p className="text-sm text-gray-700 mb-3">
-              {isFirstVisit ? (
-                '初回訪問です。次回訪問時から新規画像のみを自動検出できます。'
-              ) : (
-                `${newCount}枚の新規画像を検出しました。Proプランで詳細を確認できます。`
-              )}
+              {isFirstVisit
+                ? '初回訪問です。次回訪問時から新規画像のみを自動検出できます。'
+                : `${newCount}枚の新規画像を検出しました。Proプランで詳細を確認できます。`}
             </p>
             <button
               onClick={handleUpgrade}
@@ -165,7 +165,10 @@ const ProTierDiffView = ({
       <div className="grid grid-cols-2 gap-0.5 bg-gray-200">
         <div className="bg-white" role="region" aria-labelledby="new-images-heading">
           <div className="px-3 py-2 bg-green-50 border-b border-green-200">
-            <h3 id="new-images-heading" className="text-xs font-semibold text-green-800 uppercase tracking-wide">
+            <h3
+              id="new-images-heading"
+              className="text-xs font-semibold text-green-800 uppercase tracking-wide"
+            >
               新規画像 ({newImages.length})
             </h3>
           </div>
@@ -173,20 +176,25 @@ const ProTierDiffView = ({
             {newImages.length > 0 ? (
               <div className="grid grid-cols-2 gap-1" role="list" aria-label="新規画像一覧">
                 {newImages.map((image) => (
-                  <DiffImageCard key={`new-${image.hash}-${image.url}`} image={image} isNew={true} />
+                  <DiffImageCard
+                    key={`new-${image.hash}-${image.url}`}
+                    image={image}
+                    isNew={true}
+                  />
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-center text-sm text-gray-500">
-                新規画像はありません
-              </div>
+              <div className="p-4 text-center text-sm text-gray-500">新規画像はありません</div>
             )}
           </div>
         </div>
 
         <div className="bg-white" role="region" aria-labelledby="existing-images-heading">
           <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
-            <h3 id="existing-images-heading" className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+            <h3
+              id="existing-images-heading"
+              className="text-xs font-semibold text-gray-700 uppercase tracking-wide"
+            >
               既存画像 ({existingImages.length})
             </h3>
           </div>
@@ -194,13 +202,15 @@ const ProTierDiffView = ({
             {existingImages.length > 0 ? (
               <div className="grid grid-cols-2 gap-1" role="list" aria-label="既存画像一覧">
                 {existingImages.map((image) => (
-                  <DiffImageCard key={`existing-${image.hash}-${image.url}`} image={image} isNew={false} />
+                  <DiffImageCard
+                    key={`existing-${image.hash}-${image.url}`}
+                    image={image}
+                    isNew={false}
+                  />
                 ))}
               </div>
             ) : (
-              <div className="p-4 text-center text-sm text-gray-500">
-                既存画像はありません
-              </div>
+              <div className="p-4 text-center text-sm text-gray-500">既存画像はありません</div>
             )}
           </div>
         </div>
@@ -294,14 +304,8 @@ const DiffImageCard = ({ image, isNew }: DiffImageCardProps) => {
           className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white text-xs p-1 transition-opacity duration-200"
           aria-live="polite"
         >
-          {sizeText && (
-            <div className="font-semibold text-center">{sizeText}</div>
-          )}
-          {image.alt && (
-            <div className="text-center line-clamp-2 break-all mt-1">
-              {image.alt}
-            </div>
-          )}
+          {sizeText && <div className="font-semibold text-center">{sizeText}</div>}
+          {image.alt && <div className="text-center line-clamp-2 break-all mt-1">{image.alt}</div>}
         </div>
       )}
     </div>

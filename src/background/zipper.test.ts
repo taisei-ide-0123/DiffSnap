@@ -109,11 +109,7 @@ describe('createZip', () => {
 
   it('should deconflict duplicate filenames', async () => {
     // Create 3 images with identical metadata (would generate same filename)
-    const images = [
-      createMockImage(),
-      createMockImage(),
-      createMockImage(),
-    ]
+    const images = [createMockImage(), createMockImage(), createMockImage()]
 
     const result = await createZip(images, {
       template: '{domain}', // Simple template that will collide

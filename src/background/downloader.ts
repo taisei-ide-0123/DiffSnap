@@ -93,15 +93,9 @@ export const downloadWithNotification = async (
   const result = await download(options)
 
   if (result.success) {
-    await showNotification(
-      'ダウンロード成功',
-      `${options.filename} をダウンロードしました`
-    )
+    await showNotification('ダウンロード成功', `${options.filename} をダウンロードしました`)
   } else {
-    await showNotification(
-      'ダウンロード失敗',
-      `エラー: ${result.error}\n再試行してください`
-    )
+    await showNotification('ダウンロード失敗', `エラー: ${result.error}\n再試行してください`)
   }
 
   return result

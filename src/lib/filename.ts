@@ -177,10 +177,7 @@ export const makeFilename = (
   try {
     const url = new URL(pageUrl)
     domain = url.hostname
-    path = url.pathname
-      .split('/')
-      .filter(Boolean)
-      .join('-')
+    path = url.pathname.split('/').filter(Boolean).join('-')
   } catch {
     // URLパース失敗時
   }
@@ -201,7 +198,10 @@ export const makeFilename = (
   let filename = template
   for (const [key, value] of Object.entries(context)) {
     const placeholder = `{${key}}`
-    filename = filename.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), String(value))
+    filename = filename.replace(
+      new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'),
+      String(value)
+    )
   }
 
   // 最終的なファイル名全体をサニタイズ（長さ制限なし）
