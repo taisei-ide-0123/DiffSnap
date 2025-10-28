@@ -45,8 +45,8 @@ interface CollectionState {
   startedAt: number
 }
 
-// 進行中の収集を管理するMap
-const activeCollections = new Map<number, CollectionState>()
+// 進行中の収集を管理するMap (テスト用にexport)
+export const activeCollections = new Map<number, CollectionState>()
 
 /**
  * 収集オーケストレーター
@@ -84,6 +84,15 @@ const orchestrateCollection = async (
     if (tier === 'free') {
       const withinLimit = await checkFreeLimit(candidates.length)
       if (!withinLimit) {
+        // 制限超過通知
+        await chrome.notifications.create({
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+          title: 'DiffSnap - Free制限到達',
+          message: '今月の無料枠(500枚)を超えています。Proプランで無制限にご利用いただけます。',
+          priority: 2,
+        })
+
         await sendStateUpdate({
           tabId,
           status: 'error',
@@ -92,7 +101,6 @@ const orchestrateCollection = async (
           failed: [],
           zipSize: 0,
         })
-        // TODO: 制限超過通知（chrome.notifications API使用）
         console.warn('[orchestrateCollection] Free tier limit exceeded')
         return
       }
@@ -262,19 +270,35 @@ const handleContentMessage: MessageHandler<ContentToBackgroundMessage> = (
 
       console.log('Received IMAGES_DETECTED from tab:', tabId, 'count:', message.candidates.length)
 
-      // 収集状態を保存（START_COLLECTIONで使用）
-      const collectionState: CollectionState = {
-        tabId,
-        url: sender.tab?.url ?? '',
-        candidates: message.candidates,
-        options: {
-          enableScroll: false,
-          maxScrollDepth: 20,
-          scrollTimeout: 15000,
-        },
-        startedAt: Date.now(),
+      // 既存の収集状態を取得
+      const existingState = activeCollections.get(tabId)
+      if (!existingState) {
+        console.warn('Received IMAGES_DETECTED without active collection')
+        sendResponse({ status: 'ERROR', error: 'No active collection' })
+        return true
       }
-      activeCollections.set(tabId, collectionState)
+
+      // 候補を更新
+      existingState.candidates = message.candidates
+
+      // 収集オーケストレーションを開始
+      chrome.tabs
+        .get(tabId)
+        .then((tab) => {
+          if (!tab.url) {
+            throw new Error('Tab URL not available')
+          }
+          // 非同期で収集開始（レスポンスはすぐ返す）
+          orchestrateCollection(tabId, tab.url, message.candidates, existingState.options).catch(
+            (err) => {
+              console.error('[IMAGES_DETECTED] Orchestration failed:', err)
+            }
+          )
+        })
+        .catch((err) => {
+          console.error('[IMAGES_DETECTED] Failed to get tab:', err)
+          activeCollections.delete(tabId)
+        })
 
       sendResponse({ status: 'OK', received: message.candidates.length })
       return true
@@ -333,8 +357,7 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
       console.log('START_COLLECTION request:', { tabId, options })
 
       // 進行中の収集があるかチェック
-      const existingCollection = activeCollections.get(tabId)
-      if (existingCollection) {
+      if (activeCollections.has(tabId)) {
         console.log('Collection already in progress for tab:', tabId)
         sendResponse({
           status: 'ERROR',
@@ -343,12 +366,27 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
         return true
       }
 
-      // タブのURLと候補を取得
+      // 状態を予約（競合防止 - 空の候補配列で初期化）
+      activeCollections.set(tabId, {
+        tabId,
+        url: '', // tab取得後に更新
+        candidates: [],
+        options,
+        startedAt: Date.now(),
+      })
+
+      // 非同期処理を開始
       chrome.tabs
         .get(tabId)
         .then(async (tab) => {
           if (!tab.url) {
             throw new Error('Tab URL not available')
+          }
+
+          // 状態更新
+          const state = activeCollections.get(tabId)
+          if (state) {
+            state.url = tab.url
           }
 
           // Content Scriptに画像検出を依頼
@@ -359,28 +397,25 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
               timeout: options.scrollTimeout,
             },
           })
-
-          // 候補が既に検出されている場合は即座に開始
-          const state = activeCollections.get(tabId)
-          if (state && state.candidates.length > 0) {
-            // 非同期で収集開始（レスポンスはすぐ返す）
-            orchestrateCollection(tabId, tab.url, state.candidates, options).catch((err) => {
-              console.error('[START_COLLECTION] Orchestration failed:', err)
-            })
-          }
         })
-        .catch((err) => {
-          console.error('[START_COLLECTION] Failed to get tab:', err)
-          sendResponse({
-            status: 'ERROR',
-            error: err instanceof Error ? err.message : 'Unknown error',
+        .catch(async (err) => {
+          console.error('[START_COLLECTION] Failed:', err)
+          // エラーは別のメッセージチャネルで通知
+          await sendStateUpdate({
+            tabId,
+            status: 'error',
+            total: 0,
+            completed: 0,
+            failed: [],
+            zipSize: 0,
           })
+          activeCollections.delete(tabId)
         })
 
-      // 非同期処理中なので即座にOKを返す
+      // 即座に受付確認を返す
       sendResponse({
         status: 'OK',
-        message: 'Collection started',
+        message: 'Collection request accepted',
       })
       return true
     }

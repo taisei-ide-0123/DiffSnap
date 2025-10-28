@@ -5,13 +5,14 @@
  * 正しく動作することを検証します。
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   handleMessage,
   sendStateUpdate,
   sendDiffResult,
   sendZipReady,
   sendToContent,
+  activeCollections,
 } from './message-router'
 import type { RunState } from '../shared/types'
 import type {
@@ -43,8 +44,40 @@ describe('Message Router', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
+  afterEach(() => {
+    // テスト間で状態をクリーンアップ
+    activeCollections.clear()
+  })
+
   describe('Content Script Messages', () => {
+    beforeEach(() => {
+      // chrome APIのモック
+      global.chrome = {
+        tabs: {
+          get: vi.fn().mockResolvedValue({
+            id: 123,
+            url: 'https://example.com',
+          }),
+        },
+      } as unknown as typeof chrome
+    })
+
     it('should handle IMAGES_DETECTED message', () => {
+      const tabId = 123
+
+      // START_COLLECTIONで作成される状態を事前にセットアップ
+      activeCollections.set(tabId, {
+        tabId,
+        url: 'https://example.com',
+        candidates: [],
+        options: {
+          enableScroll: false,
+          maxScrollDepth: 20,
+          scrollTimeout: 15000,
+        },
+        startedAt: Date.now(),
+      })
+
       const candidates: ImageCandidate[] = [
         {
           url: 'https://example.com/image1.jpg',
@@ -184,7 +217,7 @@ describe('Message Router', () => {
       expect(result).toBe(true)
       expect(mockSendResponse).toHaveBeenCalledWith({
         status: 'OK',
-        message: 'Collection started',
+        message: 'Collection request accepted',
       })
     })
 
