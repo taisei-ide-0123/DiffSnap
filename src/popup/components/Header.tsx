@@ -6,10 +6,7 @@ interface HeaderProps {
 }
 
 export const Header = ({ imageCount = 0, tier = 'Free' }: HeaderProps) => {
-  const tierStyles =
-    tier === 'Pro'
-      ? 'bg-blue-100 text-blue-800'
-      : 'bg-gray-100 text-gray-800'
+  const tierStyles = tier === 'Pro' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
 
   return (
     <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
@@ -24,8 +21,7 @@ export const Header = ({ imageCount = 0, tier = 'Free' }: HeaderProps) => {
           aria-live="polite"
           aria-label={`検出画像数: ${imageCount}枚`}
         >
-          <span className="font-semibold text-gray-900">{imageCount}</span>{' '}
-          images
+          <span className="font-semibold text-gray-900">{imageCount}</span> images
         </div>
 
         <span

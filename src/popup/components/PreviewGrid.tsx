@@ -12,10 +12,7 @@ interface PreviewGridProps {
   maxDisplay?: number
 }
 
-export const PreviewGrid = ({
-  images,
-  maxDisplay = 100,
-}: PreviewGridProps) => {
+export const PreviewGrid = ({ images, maxDisplay = 100 }: PreviewGridProps) => {
   const [visibleCount, setVisibleCount] = useState(12)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
@@ -52,22 +49,14 @@ export const PreviewGrid = ({
 
   return (
     <div className="w-full">
-      <div
-        className="grid grid-cols-3 gap-2 p-4"
-        role="list"
-        aria-label="画像プレビューグリッド"
-      >
+      <div className="grid grid-cols-3 gap-2 p-4" role="list" aria-label="画像プレビューグリッド">
         {visibleImages.map((image, index) => (
           <PreviewCard key={`${image.url}-${index}`} image={image} />
         ))}
       </div>
 
       {visibleCount < displayImages.length && (
-        <div
-          ref={sentinelRef}
-          className="h-4"
-          aria-hidden="true"
-        />
+        <div ref={sentinelRef} className="h-4" aria-hidden="true" />
       )}
 
       {images.length > maxDisplay && (
@@ -132,17 +121,9 @@ const PreviewCard = ({ image }: PreviewCardProps) => {
           className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white text-xs p-2 transition-opacity duration-200"
           aria-live="polite"
         >
-          {sizeText && (
-            <div className="font-semibold mb-1">{sizeText}</div>
-          )}
-          {image.alt && (
-            <div className="text-center line-clamp-3 break-all">
-              {image.alt}
-            </div>
-          )}
-          {!sizeText && !image.alt && (
-            <div className="text-gray-300">情報なし</div>
-          )}
+          {sizeText && <div className="font-semibold mb-1">{sizeText}</div>}
+          {image.alt && <div className="text-center line-clamp-3 break-all">{image.alt}</div>}
+          {!sizeText && !image.alt && <div className="text-gray-300">情報なし</div>}
         </div>
       )}
     </div>

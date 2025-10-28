@@ -9,12 +9,7 @@
  */
 
 import { ParallelController, isFetchSuccess, type FetchResult } from './parallel-controller'
-import type {
-  ImageCandidate,
-  ImageSnapshot,
-  StateUpdateMessage,
-  FailedImage,
-} from '@/shared/types'
+import type { ImageCandidate, ImageSnapshot, StateUpdateMessage, FailedImage } from '@/shared/types'
 
 export interface CollectionProgress {
   total: number
@@ -196,7 +191,13 @@ export class ImageCollector {
 
       // Report progress periodically (every 10 images)
       if (completed % 10 === 0) {
-        await this.notifyProgress({ total, completed, failed, deduplicated, failedImages: failureList })
+        await this.notifyProgress({
+          total,
+          completed,
+          failed,
+          deduplicated,
+          failedImages: failureList,
+        })
       }
     }
 

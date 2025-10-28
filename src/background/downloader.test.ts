@@ -216,10 +216,7 @@ describe('showNotification', () => {
     // Should not throw
     await expect(showNotification('Title', 'Message')).resolves.toBeUndefined()
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Failed to show notification:',
-      expect.any(Error)
-    )
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to show notification:', expect.any(Error))
 
     consoleErrorSpy.mockRestore()
   })

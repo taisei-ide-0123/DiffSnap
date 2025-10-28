@@ -350,9 +350,7 @@ describe('diff-engine', () => {
 
       expect(deletedCount).toBe(0)
 
-      const recentRecordId = await import('../lib/url-utils').then((m) =>
-        m.makeRecordId(recentUrl)
-      )
+      const recentRecordId = await import('../lib/url-utils').then((m) => m.makeRecordId(recentUrl))
       const recentRecord = await getRecord(recentRecordId)
       expect(recentRecord).toBeTruthy()
     })

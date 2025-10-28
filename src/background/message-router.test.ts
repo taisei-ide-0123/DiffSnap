@@ -5,13 +5,14 @@
  * 正しく動作することを検証します。
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   handleMessage,
   sendStateUpdate,
   sendDiffResult,
   sendZipReady,
   sendToContent,
+  activeCollections,
 } from './message-router'
 import type { RunState } from '../shared/types'
 import type {
@@ -43,8 +44,40 @@ describe('Message Router', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
+  afterEach(() => {
+    // テスト間で状態をクリーンアップ
+    activeCollections.clear()
+  })
+
   describe('Content Script Messages', () => {
+    beforeEach(() => {
+      // chrome APIのモック
+      global.chrome = {
+        tabs: {
+          get: vi.fn().mockResolvedValue({
+            id: 123,
+            url: 'https://example.com',
+          }),
+        },
+      } as unknown as typeof chrome
+    })
+
     it('should handle IMAGES_DETECTED message', () => {
+      const tabId = 123
+
+      // START_COLLECTIONで作成される状態を事前にセットアップ
+      activeCollections.set(tabId, {
+        tabId,
+        url: 'https://example.com',
+        candidates: [],
+        options: {
+          enableScroll: false,
+          maxScrollDepth: 20,
+          scrollTimeout: 15000,
+        },
+        startedAt: Date.now(),
+      })
+
       const candidates: ImageCandidate[] = [
         {
           url: 'https://example.com/image1.jpg',
@@ -131,10 +164,41 @@ describe('Message Router', () => {
   })
 
   describe('Popup Messages', () => {
+    beforeEach(() => {
+      // chrome APIのモック（sendMessage以外も追加）
+      global.chrome = {
+        runtime: {
+          sendMessage: vi.fn().mockResolvedValue(undefined),
+        },
+        tabs: {
+          get: vi.fn().mockResolvedValue({
+            id: 123,
+            url: 'https://example.com',
+          }),
+          query: vi.fn().mockResolvedValue([{ id: 123, url: 'https://example.com' }]),
+          sendMessage: vi.fn().mockResolvedValue(undefined),
+        },
+        downloads: {
+          download: vi.fn().mockResolvedValue(12345),
+        },
+        storage: {
+          sync: {
+            get: vi.fn().mockResolvedValue({ namingTemplate: '{date}-{domain}-{index}' }),
+          },
+          local: {
+            get: vi.fn().mockResolvedValue({}),
+            set: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+      } as unknown as typeof chrome
+    })
+
     it('should handle START_COLLECTION message', () => {
+      // 別のtabIdを使用してIMAGES_DETECTEDテストとの競合を避ける
+      const uniqueTabId = 999
       const message: StartCollectionMessage = {
         type: 'START_COLLECTION',
-        tabId: 123,
+        tabId: uniqueTabId,
         options: {
           enableScroll: true,
           maxScrollDepth: 20,
@@ -142,12 +206,18 @@ describe('Message Router', () => {
         },
       }
 
+      // chrome.tabs.getのモックを更新
+      vi.mocked(chrome.tabs.get).mockResolvedValue({
+        id: uniqueTabId,
+        url: 'https://example.com',
+      } as chrome.tabs.Tab)
+
       const result = handleMessage(message, mockSender, mockSendResponse)
 
       expect(result).toBe(true)
       expect(mockSendResponse).toHaveBeenCalledWith({
         status: 'OK',
-        message: 'Collection started (placeholder)',
+        message: 'Collection request accepted',
       })
     })
 
@@ -295,10 +365,7 @@ describe('Message Router', () => {
 
         await sendStateUpdate(state)
 
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'Failed to send STATE_UPDATE:',
-          error
-        )
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to send STATE_UPDATE:', error)
       })
     })
 
@@ -384,10 +451,10 @@ describe('Message Router', () => {
 
         await sendToContent(tabId, message)
 
-        expect(consoleLogSpy).toHaveBeenCalledWith(
-          'Message sent to content script:',
-          { tabId, type: 'START_SCROLL' }
-        )
+        expect(consoleLogSpy).toHaveBeenCalledWith('Message sent to content script:', {
+          tabId,
+          type: 'START_SCROLL',
+        })
       })
     })
   })

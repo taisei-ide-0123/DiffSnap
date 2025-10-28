@@ -204,6 +204,6 @@ export interface UserConfig {
   licenseKey?: string // Pro購入時のライセンスキー
   namingTemplate: string // デフォルト: "{date}-{domain}-{w}x{h}-{index}"
   domainProfiles: DomainProfile[]
-  monthlyCount: number // Free制限用カウンタ
-  monthlyResetAt: number // 次回リセット日時（Unixタイムスタンプ）
+  monthlyCount?: number // Free制限用カウンタ（オプショナル - 初回は未設定）
+  monthlyResetAt?: number // 次回リセット日時（オプショナル - 初回は未設定）
 }

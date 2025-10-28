@@ -21,9 +21,35 @@ export const App = () => {
     return cleanup
   }, [])
 
-  const handleDownload = () => {
-    // TODO: Implement download logic
-    // chrome.runtime.sendMessage({ type: 'START_COLLECTION', ... })
+  const handleDownload = async () => {
+    try {
+      // 現在のタブを取得
+      const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true })
+
+      if (!currentTab?.id) {
+        console.error('No active tab found')
+        return
+      }
+
+      // START_COLLECTIONメッセージを送信
+      const response = await chrome.runtime.sendMessage({
+        type: 'START_COLLECTION',
+        tabId: currentTab.id,
+        options: {
+          enableScroll: false, // MVP: 自動スクロールは手動トリガー
+          maxScrollDepth: 20,
+          scrollTimeout: 15000,
+        },
+      })
+
+      if (response?.status === 'OK') {
+        console.log('Collection started successfully')
+      } else {
+        console.error('Collection failed to start:', response)
+      }
+    } catch (error) {
+      console.error('Failed to send START_COLLECTION:', error)
+    }
   }
 
   const handleRetry = async (url: string) => {
@@ -134,9 +160,7 @@ export const App = () => {
           </div>
         )}
 
-        {status === 'idle' && candidates.length > 0 && (
-          <PreviewGrid images={candidates} />
-        )}
+        {status === 'idle' && candidates.length > 0 && <PreviewGrid images={candidates} />}
 
         {status === 'complete' && (
           <div data-testid="download-complete">

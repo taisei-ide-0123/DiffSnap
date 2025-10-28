@@ -1,9 +1,5 @@
 import { create } from 'zustand'
-import type {
-  RunState,
-  ImageCandidate,
-  BackgroundToPopupMessage,
-} from '../../shared/types'
+import type { RunState, ImageCandidate, BackgroundToPopupMessage } from '../../shared/types'
 
 // Popup専用のストア状態
 interface PopupState extends RunState {
@@ -61,15 +57,10 @@ export const usePopupStore = create<PopupStore>((set) => ({
     set((state) => {
       // 状態遷移検証（statusが変更される場合のみ）
       if (update.status !== undefined && update.status !== state.status) {
-        const isValidTransition = validateStatusTransition(
-          state.status,
-          update.status,
-        )
+        const isValidTransition = validateStatusTransition(state.status, update.status)
 
         if (!isValidTransition) {
-          console.warn(
-            `Invalid status transition: ${state.status} -> ${update.status}`,
-          )
+          console.warn(`Invalid status transition: ${state.status} -> ${update.status}`)
           return state
         }
       }
@@ -102,10 +93,7 @@ export const usePopupStore = create<PopupStore>((set) => ({
 }))
 
 // 状態遷移バリデーション
-const validateStatusTransition = (
-  from: RunState['status'],
-  to: RunState['status'],
-): boolean => {
+const validateStatusTransition = (from: RunState['status'], to: RunState['status']): boolean => {
   const transitions: Record<RunState['status'], RunState['status'][]> = {
     idle: ['detecting'],
     detecting: ['fetching', 'error'],

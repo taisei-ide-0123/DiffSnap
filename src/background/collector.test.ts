@@ -66,33 +66,30 @@ describe('ImageCollector', () => {
   })
 
   describe('Deduplication', () => {
-    it(
-      'should deduplicate images with same hash',
-      async () => {
-        const candidates: ImageCandidate[] = [
-          { url: 'https://example.com/1.jpg', source: 'img' },
-          { url: 'https://example.com/2.jpg', source: 'img' },
-          { url: 'https://example.com/3.jpg', source: 'img' },
-        ]
+    it('should deduplicate images with same hash', async () => {
+      const candidates: ImageCandidate[] = [
+        { url: 'https://example.com/1.jpg', source: 'img' },
+        { url: 'https://example.com/2.jpg', source: 'img' },
+        { url: 'https://example.com/3.jpg', source: 'img' },
+      ]
 
-        // All return the same content -> same hash
-        global.fetch = vi.fn(async () =>
+      // All return the same content -> same hash
+      global.fetch = vi.fn(
+        async () =>
           new Response('same content', {
             status: 200,
             headers: { 'Content-Type': 'image/jpeg' },
           })
-        )
+      )
 
-        const result = await collector.collect(candidates)
+      const result = await collector.collect(candidates)
 
-        expect(result.stats.total).toBe(3)
-        expect(result.stats.fetched).toBe(1) // Only one unique
-        expect(result.stats.deduplicated).toBe(2) // 2 duplicates
-        expect(result.stats.failed).toBe(0)
-        expect(result.images).toHaveLength(1)
-      },
-      10000
-    ) // Increase timeout
+      expect(result.stats.total).toBe(3)
+      expect(result.stats.fetched).toBe(1) // Only one unique
+      expect(result.stats.deduplicated).toBe(2) // 2 duplicates
+      expect(result.stats.failed).toBe(0)
+      expect(result.images).toHaveLength(1)
+    }, 10000) // Increase timeout
 
     it('should keep images with different hashes', async () => {
       const candidates: ImageCandidate[] = [
@@ -155,9 +152,7 @@ describe('ImageCollector', () => {
     })
 
     it('should not crash if progress callback is not provided', async () => {
-      const candidates: ImageCandidate[] = [
-        { url: 'https://example.com/1.jpg', source: 'img' },
-      ]
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
 
       global.fetch = vi.fn(
         async () => new Response('test', { status: 200, headers: { 'Content-Type': 'image/jpeg' } })
@@ -203,40 +198,36 @@ describe('ImageCollector', () => {
   })
 
   describe('Large Scale Collection', () => {
-    it(
-      'should handle 100 images efficiently',
-      async () => {
-        const candidates: ImageCandidate[] = Array.from({ length: 100 }, (_, i) => ({
-          url: `https://example${i % 10}.com/image${i}.jpg`,
-          source: 'img' as const,
-        }))
+    it('should handle 100 images efficiently', async () => {
+      const candidates: ImageCandidate[] = Array.from({ length: 100 }, (_, i) => ({
+        url: `https://example${i % 10}.com/image${i}.jpg`,
+        source: 'img' as const,
+      }))
 
-        let callCount = 0
-        global.fetch = vi.fn(async (url) => {
-          callCount++
-          // Unique content for each URL
-          await new Promise((resolve) => setTimeout(resolve, 10)) // Simulate network delay
-          return new Response(`content-${url}-${callCount}`, {
-            status: 200,
-            headers: { 'Content-Type': 'image/jpeg' },
-          })
+      let callCount = 0
+      global.fetch = vi.fn(async (url) => {
+        callCount++
+        // Unique content for each URL
+        await new Promise((resolve) => setTimeout(resolve, 10)) // Simulate network delay
+        return new Response(`content-${url}-${callCount}`, {
+          status: 200,
+          headers: { 'Content-Type': 'image/jpeg' },
         })
+      })
 
-        const startTime = Date.now()
-        const result = await collector.collect(candidates)
-        const duration = Date.now() - startTime
+      const startTime = Date.now()
+      const result = await collector.collect(candidates)
+      const duration = Date.now() - startTime
 
-        expect(result.stats.total).toBe(100)
-        expect(result.stats.fetched).toBe(100)
-        expect(result.images).toHaveLength(100)
+      expect(result.stats.total).toBe(100)
+      expect(result.stats.fetched).toBe(100)
+      expect(result.images).toHaveLength(100)
 
-        // Should complete reasonably fast (parallel execution)
-        // With 10ms delay per fetch, sequential would take 1000ms
-        // Parallel (8 concurrent) should be ~150ms
-        expect(duration).toBeLessThan(500)
-      },
-      10000
-    ) // Increase timeout
+      // Should complete reasonably fast (parallel execution)
+      // With 10ms delay per fetch, sequential would take 1000ms
+      // Parallel (8 concurrent) should be ~150ms
+      expect(duration).toBeLessThan(500)
+    }, 10000) // Increase timeout
   })
 
   describe('ImageSnapshot Creation', () => {
@@ -293,9 +284,7 @@ describe('ImageCollector', () => {
 
   describe('Convenience Function', () => {
     it('should work with collectImages helper', async () => {
-      const candidates: ImageCandidate[] = [
-        { url: 'https://example.com/1.jpg', source: 'img' },
-      ]
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
 
       global.fetch = vi.fn(
         async () => new Response('test', { status: 200, headers: { 'Content-Type': 'image/jpeg' } })
@@ -309,9 +298,7 @@ describe('ImageCollector', () => {
 
     it('should accept options in helper function', async () => {
       const progressCallback = vi.fn()
-      const candidates: ImageCandidate[] = [
-        { url: 'https://example.com/1.jpg', source: 'img' },
-      ]
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
 
       global.fetch = vi.fn(
         async () => new Response('test', { status: 200, headers: { 'Content-Type': 'image/jpeg' } })

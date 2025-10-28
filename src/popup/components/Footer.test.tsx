@@ -7,12 +7,8 @@ import { Footer } from './Footer'
 describe('Footer', () => {
   it('renders download button and settings button', () => {
     render(<Footer />)
-    expect(
-      screen.getByRole('button', { name: 'Download all images' })
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'Open settings' })
-    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Download all images' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open settings' })).toBeInTheDocument()
   })
 
   it('calls onDownload when download button is clicked', async () => {
@@ -26,9 +22,7 @@ describe('Footer', () => {
 
   it('shows downloading state', () => {
     render(<Footer isDownloading={true} />)
-    expect(
-      screen.getByRole('button', { name: 'Downloading images' })
-    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Downloading images' })).toBeInTheDocument()
     expect(screen.getByText('Downloading...')).toBeInTheDocument()
   })
 
@@ -71,9 +65,7 @@ describe('Footer', () => {
 
   it('has accessible button labels', () => {
     render(<Footer />)
-    expect(
-      screen.getByLabelText('Download all images')
-    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Download all images')).toBeInTheDocument()
     expect(screen.getByLabelText('Open settings')).toBeInTheDocument()
   })
 })

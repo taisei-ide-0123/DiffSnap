@@ -44,9 +44,7 @@ describe('Popup Store', () => {
       // 最初にエラー状態にする
       usePopupStore.getState().setError('Test error')
 
-      const candidates: ImageCandidate[] = [
-        { url: 'https://example.com/1.jpg', source: 'img' },
-      ]
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
       usePopupStore.getState().startCollection(456, candidates)
 
       const state = usePopupStore.getState()
@@ -57,9 +55,7 @@ describe('Popup Store', () => {
 
   describe('updateProgress', () => {
     beforeEach(() => {
-      const candidates: ImageCandidate[] = [
-        { url: 'https://example.com/1.jpg', source: 'img' },
-      ]
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
       usePopupStore.getState().startCollection(123, candidates)
     })
 
@@ -98,9 +94,7 @@ describe('Popup Store', () => {
     })
 
     it('無効な状態遷移を拒否する: detecting -> complete', () => {
-      const consoleWarnSpy = vi
-        .spyOn(console, 'warn')
-        .mockImplementation(() => {})
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       usePopupStore.getState().updateProgress({
         status: 'complete',
@@ -108,23 +102,21 @@ describe('Popup Store', () => {
 
       expect(usePopupStore.getState().status).toBe('detecting')
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'Invalid status transition: detecting -> complete',
+        'Invalid status transition: detecting -> complete'
       )
 
       consoleWarnSpy.mockRestore()
     })
 
     it('無効な状態遷移を拒否する: fetching -> detecting', () => {
-      const consoleWarnSpy = vi
-        .spyOn(console, 'warn')
-        .mockImplementation(() => {})
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       usePopupStore.getState().updateProgress({ status: 'fetching' })
       usePopupStore.getState().updateProgress({ status: 'detecting' })
 
       expect(usePopupStore.getState().status).toBe('fetching')
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'Invalid status transition: fetching -> detecting',
+        'Invalid status transition: fetching -> detecting'
       )
 
       consoleWarnSpy.mockRestore()
@@ -138,9 +130,7 @@ describe('Popup Store', () => {
     })
 
     it('エラー状態への遷移を常に許可する: detecting -> error', () => {
-      const candidates: ImageCandidate[] = [
-        { url: 'https://example.com/1.jpg', source: 'img' },
-      ]
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
       usePopupStore.getState().startCollection(123, candidates)
       // detecting状態からerrorに遷移
       usePopupStore.getState().updateProgress({ status: 'error' })
@@ -172,9 +162,7 @@ describe('Popup Store', () => {
     })
 
     it('任意の状態からエラー状態に遷移できる', () => {
-      const candidates: ImageCandidate[] = [
-        { url: 'https://example.com/1.jpg', source: 'img' },
-      ]
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
       usePopupStore.getState().startCollection(123, candidates)
       usePopupStore.getState().updateProgress({ status: 'fetching' })
 
@@ -186,9 +174,7 @@ describe('Popup Store', () => {
 
   describe('reset', () => {
     it('全状態を初期状態にリセットする', () => {
-      const candidates: ImageCandidate[] = [
-        { url: 'https://example.com/1.jpg', source: 'img' },
-      ]
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
       usePopupStore.getState().startCollection(123, candidates)
       usePopupStore.getState().updateProgress({
         status: 'fetching',
@@ -270,9 +256,7 @@ describe('Popup Store', () => {
     })
 
     it('エラーからのリトライフローが動作する', () => {
-      const candidates: ImageCandidate[] = [
-        { url: 'https://example.com/1.jpg', source: 'img' },
-      ]
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
 
       // 1. 開始
       usePopupStore.getState().startCollection(123, candidates)
@@ -293,9 +277,7 @@ describe('Popup Store', () => {
     })
 
     it('complete -> idle 遷移が動作する', () => {
-      const candidates: ImageCandidate[] = [
-        { url: 'https://example.com/1.jpg', source: 'img' },
-      ]
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
 
       usePopupStore.getState().startCollection(123, candidates)
       usePopupStore.getState().updateProgress({ status: 'fetching' })

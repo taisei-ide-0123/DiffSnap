@@ -68,7 +68,9 @@ describe('DiffView', () => {
         />
       )
 
-      expect(screen.getByText(/初回訪問です。次回訪問時から新規画像のみを自動検出できます/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/初回訪問です。次回訪問時から新規画像のみを自動検出できます/)
+      ).toBeInTheDocument()
     })
 
     it('displays total and new image counts for free tier', () => {
@@ -166,7 +168,9 @@ describe('DiffView', () => {
         />
       )
 
-      expect(screen.getByText(/初回訪問です。次回訪問時から差分検出が有効になります/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/初回訪問です。次回訪問時から差分検出が有効になります/)
+      ).toBeInTheDocument()
     })
 
     it('renders two columns for new and existing images', () => {
@@ -185,12 +189,7 @@ describe('DiffView', () => {
 
     it('renders all new images with NEW badge', () => {
       render(
-        <DiffView
-          newImages={mockNewImages}
-          existingImages={[]}
-          tier="pro"
-          isFirstVisit={false}
-        />
+        <DiffView newImages={mockNewImages} existingImages={[]} tier="pro" isFirstVisit={false} />
       )
 
       const newBadges = screen.getAllByText('NEW')
@@ -226,12 +225,7 @@ describe('DiffView', () => {
 
     it('renders empty state when no existing images', () => {
       render(
-        <DiffView
-          newImages={mockNewImages}
-          existingImages={[]}
-          tier="pro"
-          isFirstVisit={false}
-        />
+        <DiffView newImages={mockNewImages} existingImages={[]} tier="pro" isFirstVisit={false} />
       )
 
       expect(screen.getByText(/既存画像はありません/)).toBeInTheDocument()
@@ -292,14 +286,7 @@ describe('DiffView', () => {
     })
 
     it('disables "Download All" button when no images at all', () => {
-      render(
-        <DiffView
-          newImages={[]}
-          existingImages={[]}
-          tier="pro"
-          isFirstVisit={false}
-        />
-      )
+      render(<DiffView newImages={[]} existingImages={[]} tier="pro" isFirstVisit={false} />)
 
       const downloadAllButton = screen.getByRole('button', { name: /全画像ダウンロード/ })
       expect(downloadAllButton).toBeDisabled()
@@ -308,12 +295,7 @@ describe('DiffView', () => {
     it('displays image size on hover for new images', async () => {
       const user = userEvent.setup()
       const { container } = render(
-        <DiffView
-          newImages={mockNewImages}
-          existingImages={[]}
-          tier="pro"
-          isFirstVisit={false}
-        />
+        <DiffView newImages={mockNewImages} existingImages={[]} tier="pro" isFirstVisit={false} />
       )
 
       const imgs = container.querySelectorAll('img')
@@ -345,12 +327,7 @@ describe('DiffView', () => {
 
     it('applies green border to new image cards', () => {
       const { container } = render(
-        <DiffView
-          newImages={mockNewImages}
-          existingImages={[]}
-          tier="pro"
-          isFirstVisit={false}
-        />
+        <DiffView newImages={mockNewImages} existingImages={[]} tier="pro" isFirstVisit={false} />
       )
 
       const imgs = container.querySelectorAll('img')
@@ -380,12 +357,7 @@ describe('DiffView', () => {
 
     it('displays error state when image fails to load', async () => {
       const { container } = render(
-        <DiffView
-          newImages={mockNewImages}
-          existingImages={[]}
-          tier="pro"
-          isFirstVisit={false}
-        />
+        <DiffView newImages={mockNewImages} existingImages={[]} tier="pro" isFirstVisit={false} />
       )
 
       const img = container.querySelector('img')

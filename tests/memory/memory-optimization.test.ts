@@ -217,7 +217,9 @@ describe('Memory Optimization Tests', () => {
       manager.cleanup()
 
       // ガベージコレクションを実行
-      global.gc()
+      if (global.gc) {
+        global.gc()
+      }
 
       const finalMemory = process.memoryUsage().heapUsed
       const memoryLeak = finalMemory - initialMemory

@@ -49,12 +49,7 @@ export const createThumbnail = async (
     return null
   }
 
-  const {
-    maxWidth = 200,
-    maxHeight = 200,
-    quality = 0.8,
-    format = 'image/jpeg',
-  } = options
+  const { maxWidth = 200, maxHeight = 200, quality = 0.8, format = 'image/jpeg' } = options
 
   try {
     // 画像を読み込む

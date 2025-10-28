@@ -167,4 +167,3 @@ export const createZip = async (
     size: blob.size,
   }
 }
-

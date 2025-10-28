@@ -20,7 +20,10 @@ describe('ProgressBar', () => {
     })
 
     it('displays all status labels correctly', () => {
-      const statuses: Array<{ status: 'detecting' | 'fetching' | 'creating-zip' | 'complete' | 'error', label: string }> = [
+      const statuses: Array<{
+        status: 'detecting' | 'fetching' | 'creating-zip' | 'complete' | 'error'
+        label: string
+      }> = [
         { status: 'detecting', label: 'Detecting images...' },
         { status: 'fetching', label: 'Fetching images...' },
         { status: 'creating-zip', label: 'Creating ZIP...' },
@@ -81,34 +84,44 @@ describe('ProgressBar', () => {
 
     it('shows error list when failed images exist', () => {
       const failedImages = [
-        { url: 'https://example.com/image1.jpg', error: 'Network timeout', errorType: 'TIMEOUT' as const, retryCount: 0, source: 'img' as const },
+        {
+          url: 'https://example.com/image1.jpg',
+          error: 'Network timeout',
+          errorType: 'TIMEOUT' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
       ]
-      render(
-        <ProgressBar
-          status="error"
-          current={99}
-          total={100}
-          failedImages={failedImages}
-        />
-      )
+      render(<ProgressBar status="error" current={99} total={100} failedImages={failedImages} />)
       expect(screen.getByRole('alert')).toBeInTheDocument()
       expect(screen.getByText(/Failed to fetch 1 image/)).toBeInTheDocument()
     })
 
     it('displays multiple failed images', () => {
       const failedImages = [
-        { url: 'https://example.com/image1.jpg', error: 'Network timeout', errorType: 'TIMEOUT' as const, retryCount: 0, source: 'img' as const },
-        { url: 'https://example.com/image2.jpg', error: '404 Not Found', errorType: 'HTTP_ERROR' as const, retryCount: 0, source: 'img' as const },
-        { url: 'https://example.com/image3.jpg', error: 'CORS error', errorType: 'CORS' as const, retryCount: 0, source: 'img' as const },
+        {
+          url: 'https://example.com/image1.jpg',
+          error: 'Network timeout',
+          errorType: 'TIMEOUT' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
+        {
+          url: 'https://example.com/image2.jpg',
+          error: '404 Not Found',
+          errorType: 'HTTP_ERROR' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
+        {
+          url: 'https://example.com/image3.jpg',
+          error: 'CORS error',
+          errorType: 'CORS' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
       ]
-      render(
-        <ProgressBar
-          status="error"
-          current={97}
-          total={100}
-          failedImages={failedImages}
-        />
-      )
+      render(<ProgressBar status="error" current={97} total={100} failedImages={failedImages} />)
       expect(screen.getByText(/Failed to fetch 3 images/)).toBeInTheDocument()
       expect(screen.getByText('Network timeout')).toBeInTheDocument()
       expect(screen.getByText('404 Not Found')).toBeInTheDocument()
@@ -116,16 +129,18 @@ describe('ProgressBar', () => {
     })
 
     it('truncates long URLs', () => {
-      const longUrl = 'https://example.com/very/long/path/to/image/that/exceeds/fifty/characters/image.jpg'
-      const failedImages = [{ url: longUrl, error: 'Error', errorType: 'UNKNOWN' as const, retryCount: 0, source: 'img' as const }]
-      render(
-        <ProgressBar
-          status="error"
-          current={99}
-          total={100}
-          failedImages={failedImages}
-        />
-      )
+      const longUrl =
+        'https://example.com/very/long/path/to/image/that/exceeds/fifty/characters/image.jpg'
+      const failedImages = [
+        {
+          url: longUrl,
+          error: 'Error',
+          errorType: 'UNKNOWN' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
+      ]
+      render(<ProgressBar status="error" current={99} total={100} failedImages={failedImages} />)
       const urlElement = screen.getByTitle(longUrl)
       expect(urlElement.textContent).toMatch(/\.\.\.$/)
       expect(urlElement.textContent?.length ?? 0).toBeLessThanOrEqual(53) // 50 + "..."
@@ -133,15 +148,16 @@ describe('ProgressBar', () => {
 
     it('does not truncate short URLs', () => {
       const shortUrl = 'https://example.com/img.jpg'
-      const failedImages = [{ url: shortUrl, error: 'Error', errorType: 'UNKNOWN' as const, retryCount: 0, source: 'img' as const }]
-      render(
-        <ProgressBar
-          status="error"
-          current={99}
-          total={100}
-          failedImages={failedImages}
-        />
-      )
+      const failedImages = [
+        {
+          url: shortUrl,
+          error: 'Error',
+          errorType: 'UNKNOWN' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
+      ]
+      render(<ProgressBar status="error" current={99} total={100} failedImages={failedImages} />)
       expect(screen.getByText(shortUrl)).toBeInTheDocument()
     })
   })
@@ -149,7 +165,13 @@ describe('ProgressBar', () => {
   describe('Retry functionality', () => {
     it('shows retry button when onRetry is provided', () => {
       const failedImages = [
-        { url: 'https://example.com/image1.jpg', error: 'Network error', errorType: 'NETWORK' as const, retryCount: 0, source: 'img' as const },
+        {
+          url: 'https://example.com/image1.jpg',
+          error: 'Network error',
+          errorType: 'NETWORK' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
       ]
       const onRetry = vi.fn()
       render(
@@ -166,23 +188,28 @@ describe('ProgressBar', () => {
 
     it('does not show retry button when onRetry is not provided', () => {
       const failedImages = [
-        { url: 'https://example.com/image1.jpg', error: 'Network error', errorType: 'NETWORK' as const, retryCount: 0, source: 'img' as const },
+        {
+          url: 'https://example.com/image1.jpg',
+          error: 'Network error',
+          errorType: 'NETWORK' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
       ]
-      render(
-        <ProgressBar
-          status="error"
-          current={99}
-          total={100}
-          failedImages={failedImages}
-        />
-      )
+      render(<ProgressBar status="error" current={99} total={100} failedImages={failedImages} />)
       expect(screen.queryByText('Retry')).not.toBeInTheDocument()
     })
 
     it('calls onRetry with correct URL when retry button is clicked', async () => {
       const user = userEvent.setup()
       const failedImages = [
-        { url: 'https://example.com/image1.jpg', error: 'Network error', errorType: 'NETWORK' as const, retryCount: 0, source: 'img' as const },
+        {
+          url: 'https://example.com/image1.jpg',
+          error: 'Network error',
+          errorType: 'NETWORK' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
       ]
       const onRetry = vi.fn()
       render(
@@ -195,7 +222,9 @@ describe('ProgressBar', () => {
         />
       )
 
-      const retryButton = screen.getByRole('button', { name: /https:\/\/example\.com\/image1\.jpg/ })
+      const retryButton = screen.getByRole('button', {
+        name: /https:\/\/example\.com\/image1\.jpg/,
+      })
       await user.click(retryButton)
 
       expect(onRetry).toHaveBeenCalledTimes(1)
@@ -204,8 +233,20 @@ describe('ProgressBar', () => {
 
     it('shows retry button for each failed image', () => {
       const failedImages = [
-        { url: 'https://example.com/image1.jpg', error: 'Error 1', errorType: 'UNKNOWN' as const, retryCount: 0, source: 'img' as const },
-        { url: 'https://example.com/image2.jpg', error: 'Error 2', errorType: 'UNKNOWN' as const, retryCount: 0, source: 'img' as const },
+        {
+          url: 'https://example.com/image1.jpg',
+          error: 'Error 1',
+          errorType: 'UNKNOWN' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
+        {
+          url: 'https://example.com/image2.jpg',
+          error: 'Error 2',
+          errorType: 'UNKNOWN' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
       ]
       const onRetry = vi.fn()
       render(
@@ -246,17 +287,22 @@ describe('ProgressBar', () => {
 
     it('has proper aria-label for error count', () => {
       const failedImages = [
-        { url: 'https://example.com/image1.jpg', error: 'Error 1', errorType: 'UNKNOWN' as const, retryCount: 0, source: 'img' as const },
-        { url: 'https://example.com/image2.jpg', error: 'Error 2', errorType: 'UNKNOWN' as const, retryCount: 0, source: 'img' as const },
+        {
+          url: 'https://example.com/image1.jpg',
+          error: 'Error 1',
+          errorType: 'UNKNOWN' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
+        {
+          url: 'https://example.com/image2.jpg',
+          error: 'Error 2',
+          errorType: 'UNKNOWN' as const,
+          retryCount: 0,
+          source: 'img' as const,
+        },
       ]
-      render(
-        <ProgressBar
-          status="error"
-          current={98}
-          total={100}
-          failedImages={failedImages}
-        />
-      )
+      render(<ProgressBar status="error" current={98} total={100} failedImages={failedImages} />)
       expect(screen.getByLabelText('2件のエラー')).toBeInTheDocument()
     })
   })
