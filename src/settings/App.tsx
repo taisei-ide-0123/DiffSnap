@@ -24,7 +24,8 @@ export const App = () => {
       try {
         const result = await chrome.storage.sync.get(['config'])
         if (result.config) {
-          setConfig(result.config as UserConfig)
+          // 型安全性を向上: デフォルト値とマージ
+          setConfig({ ...DEFAULT_CONFIG, ...(result.config as Partial<UserConfig>) })
         }
       } catch (error) {
         console.error('Failed to load config:', error)
@@ -42,9 +43,6 @@ export const App = () => {
     try {
       await chrome.storage.sync.set({ config })
       setSaveMessage('設定を保存しました')
-
-      // Clear message after 3 seconds
-      setTimeout(() => setSaveMessage(null), 3000)
     } catch (error) {
       console.error('Failed to save config:', error)
       setSaveMessage('保存に失敗しました')
@@ -52,6 +50,14 @@ export const App = () => {
       setIsSaving(false)
     }
   }
+
+  // Clear save message after 3 seconds
+  useEffect(() => {
+    if (saveMessage) {
+      const timer = setTimeout(() => setSaveMessage(null), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [saveMessage])
 
   // Update config handlers
   const updateTier = (tier: 'free' | 'pro') => {

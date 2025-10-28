@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Trash2, AlertCircle, Loader2 } from 'lucide-react'
 
 export const AdvancedSection = () => {
@@ -34,11 +34,16 @@ export const AdvancedSection = () => {
       setCleanupResult('❌ エラーが発生しました')
     } finally {
       setIsCleaningUp(false)
-
-      // Clear message after 5 seconds
-      setTimeout(() => setCleanupResult(null), 5000)
     }
   }
+
+  // Clear cleanup result message after 5 seconds
+  useEffect(() => {
+    if (cleanupResult) {
+      const timer = setTimeout(() => setCleanupResult(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [cleanupResult])
 
   return (
     <div className="space-y-6">
