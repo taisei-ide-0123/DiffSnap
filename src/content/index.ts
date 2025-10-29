@@ -27,59 +27,22 @@ const log = (...args: unknown[]) => {
 }
 
 /**
- * ページ読み込み完了時に画像検出を自動実行します
+ * 自動検出は削除しました（Issue #72対応）
+ *
+ * 理由:
+ * - Content scriptの自動検出がBackgroundの準備前に実行される競合状態
+ * - Backgroundの`activeCollections`にエントリーがない状態で
+ *   IMAGES_DETECTEDが送信され、"No active collection"エラーで却下される
+ *
+ * 新しいフロー（Lazy Detection）:
+ * 1. ユーザーがダウンロードボタンをクリック
+ * 2. Popup → Background: START_COLLECTION送信
+ * 3. Background → Content: START_SCROLL送信
+ * 4. Content: 画像検出開始 → IMAGES_DETECTED送信
+ *
+ * このシンプルなフローにより、競合状態を回避し、
+ * Backgroundが常に受付準備ができた状態で画像候補を受信できます。
  */
-const runDetection = () => {
-  log('Starting image detection...')
-
-  try {
-    // 画像検出エンジン実行
-    const candidates = detectImages()
-
-    log(`Detected ${candidates.length} image candidates`)
-
-    // BackgroundへIMAGES_DETECTEDメッセージ送信
-    const message: ImagesDetectedMessage = {
-      type: 'IMAGES_DETECTED',
-      candidates,
-    }
-
-    chrome.runtime.sendMessage(message, (response) => {
-      if (chrome.runtime.lastError) {
-        log('Failed to send message:', chrome.runtime.lastError.message)
-        return
-      }
-
-      log('Message sent successfully, response:', response)
-    })
-  } catch (error) {
-    log('Detection error:', error)
-
-    // Backgroundにエラー通知
-    chrome.runtime.sendMessage(
-      {
-        type: 'DETECTION_ERROR',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      () => {
-        if (chrome.runtime.lastError) {
-          log('Failed to send error notification:', chrome.runtime.lastError.message)
-        }
-      }
-    )
-  }
-}
-
-/**
- * DOMContentLoadedまたはdocument_idle時に検出を開始
- */
-if (document.readyState === 'loading') {
-  // まだDOMが読み込み中
-  document.addEventListener('DOMContentLoaded', runDetection)
-} else {
-  // DOMは既に読み込み済み（document_idleで実行される場合）
-  runDetection()
-}
 
 /**
  * IMAGES_DETECTEDメッセージを送信

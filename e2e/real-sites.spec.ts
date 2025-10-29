@@ -14,14 +14,17 @@ import type { Page } from '@playwright/test'
  * - プレビュー表示: ≤1秒
  * - ダウンロード完了: ≤15秒
  *
+ * フロー（Issue #72対応 - Lazy Detection）:
+ * 1. ページを開く
+ * 2. Popupを開く
+ * 3. ダウンロードボタンをクリック（START_COLLECTION発火）
+ * 4. Background → Content: START_SCROLL送信
+ * 5. Content: 画像検出開始
+ * 6. 検出完了を待機
+ *
  * 注意: これらのテストは実サイトに依存するため、
  * CI/CDでは警告モードで実行されます
  */
-
-const waitForImageDetection = async (page: Page) => {
-  // Content scriptが画像検出を完了するまで待機
-  await page.waitForTimeout(2000)
-}
 
 const openPopupForCurrentTab = async (page: Page, extensionId: string) => {
   const popupUrl = `chrome-extension://${extensionId}/src/popup/index.html`
@@ -43,20 +46,18 @@ test.describe('Real Sites E2E Tests', () => {
       waitUntil: 'networkidle',
     })
 
-    // 画像検出を待機
-    await waitForImageDetection(page)
-
     // ポップアップを開く
-    const startTime = Date.now()
     const popup = await openPopupForCurrentTab(page, extensionId)
-
-    // プレビュー表示を確認（1秒以内）
     await expect(popup.locator('#root')).toBeVisible({ timeout: 1000 })
-    const previewTime = Date.now() - startTime
-    expect(previewTime).toBeLessThanOrEqual(1000)
+
+    // ダウンロードボタンをクリック（START_COLLECTION発火）
+    const downloadButton = popup.locator('[data-testid="download-all-button"]')
+    await downloadButton.click()
+
+    // 画像検出完了を待機（プレビュー画像が表示される）
+    await popup.waitForSelector('[data-testid="preview-image"]', { timeout: 10000 })
 
     // 画像枚数を確認（30枚以上）
-    // 実際のUIに応じて調整が必要
     const imageCount = await popup.locator('[data-testid="preview-image"]').count()
     expect(imageCount).toBeGreaterThanOrEqual(30)
 
@@ -79,14 +80,15 @@ test.describe('Real Sites E2E Tests', () => {
     })
     await page.waitForTimeout(1000)
 
-    await waitForImageDetection(page)
-
-    const startTime = Date.now()
     const popup = await openPopupForCurrentTab(page, extensionId)
-
     await expect(popup.locator('#root')).toBeVisible({ timeout: 1000 })
-    const previewTime = Date.now() - startTime
-    expect(previewTime).toBeLessThanOrEqual(1000)
+
+    // ダウンロードボタンをクリック（START_COLLECTION発火）
+    const downloadButton = popup.locator('[data-testid="download-all-button"]')
+    await downloadButton.click()
+
+    // 画像検出完了を待機
+    await popup.waitForSelector('[data-testid="preview-image"]', { timeout: 10000 })
 
     const imageCount = await popup.locator('[data-testid="preview-image"]').count()
     expect(imageCount).toBeGreaterThanOrEqual(50)
@@ -104,14 +106,15 @@ test.describe('Real Sites E2E Tests', () => {
       waitUntil: 'networkidle',
     })
 
-    await waitForImageDetection(page)
-
-    const startTime = Date.now()
     const popup = await openPopupForCurrentTab(page, extensionId)
-
     await expect(popup.locator('#root')).toBeVisible({ timeout: 1000 })
-    const previewTime = Date.now() - startTime
-    expect(previewTime).toBeLessThanOrEqual(1000)
+
+    // ダウンロードボタンをクリック（START_COLLECTION発火）
+    const downloadButton = popup.locator('[data-testid="download-all-button"]')
+    await downloadButton.click()
+
+    // 画像検出完了を待機
+    await popup.waitForSelector('[data-testid="preview-image"]', { timeout: 10000 })
 
     const imageCount = await popup.locator('[data-testid="preview-image"]').count()
     expect(imageCount).toBeGreaterThanOrEqual(20)
@@ -129,14 +132,15 @@ test.describe('Real Sites E2E Tests', () => {
       waitUntil: 'networkidle',
     })
 
-    await waitForImageDetection(page)
-
-    const startTime = Date.now()
     const popup = await openPopupForCurrentTab(page, extensionId)
-
     await expect(popup.locator('#root')).toBeVisible({ timeout: 1000 })
-    const previewTime = Date.now() - startTime
-    expect(previewTime).toBeLessThanOrEqual(1000)
+
+    // ダウンロードボタンをクリック（START_COLLECTION発火）
+    const downloadButton = popup.locator('[data-testid="download-all-button"]')
+    await downloadButton.click()
+
+    // 画像検出完了を待機
+    await popup.waitForSelector('[data-testid="preview-image"]', { timeout: 10000 })
 
     const imageCount = await popup.locator('[data-testid="preview-image"]').count()
     expect(imageCount).toBeGreaterThanOrEqual(10)
@@ -154,14 +158,15 @@ test.describe('Real Sites E2E Tests', () => {
       waitUntil: 'networkidle',
     })
 
-    await waitForImageDetection(page)
-
-    const startTime = Date.now()
     const popup = await openPopupForCurrentTab(page, extensionId)
-
     await expect(popup.locator('#root')).toBeVisible({ timeout: 1000 })
-    const previewTime = Date.now() - startTime
-    expect(previewTime).toBeLessThanOrEqual(1000)
+
+    // ダウンロードボタンをクリック（START_COLLECTION発火）
+    const downloadButton = popup.locator('[data-testid="download-all-button"]')
+    await downloadButton.click()
+
+    // 画像検出完了を待機
+    await popup.waitForSelector('[data-testid="preview-image"]', { timeout: 10000 })
 
     const imageCount = await popup.locator('[data-testid="preview-image"]').count()
     expect(imageCount).toBeGreaterThanOrEqual(10)
@@ -179,15 +184,14 @@ test.describe('Real Sites E2E Tests', () => {
       waitUntil: 'networkidle',
     })
 
-    await waitForImageDetection(page)
-
     const popup = await openPopupForCurrentTab(page, extensionId)
-    await expect(popup.locator('#root')).toBeVisible()
+    await expect(popup.locator('#root')).toBeVisible({ timeout: 1000 })
 
     const downloadStartTime = Date.now()
     const downloadButton = popup.locator('[data-testid="download-all-button"]')
     await downloadButton.click()
 
+    // ダウンロード完了を待機（15秒以内）
     await popup.waitForSelector('[data-testid="download-complete"]', {
       timeout: 15000,
     })
