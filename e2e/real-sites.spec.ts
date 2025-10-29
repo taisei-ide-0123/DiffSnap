@@ -170,33 +170,32 @@ test.describe('Real Sites E2E Tests', () => {
     await page.close()
   })
 
-  // NOTE: ダウンロード完了テストは機能実装後に有効化 (Issue #60)
-  // test('ダウンロード完了が15秒以内に完了すること', async ({
-  //   context,
-  //   extensionId,
-  // }) => {
-  //   const page = await context.newPage()
-  //   await page.goto('https://en.wikipedia.org/wiki/Photography', {
-  //     waitUntil: 'networkidle',
-  //   })
-  //
-  //   await waitForImageDetection(page)
-  //
-  //   const popup = await openPopupForCurrentTab(page, extensionId)
-  //   await expect(popup.locator('#root')).toBeVisible()
-  //
-  //   const downloadStartTime = Date.now()
-  //   const downloadButton = popup.locator('[data-testid="download-all-button"]')
-  //   await downloadButton.click()
-  //
-  //   await popup.waitForSelector('[data-testid="download-complete"]', {
-  //     timeout: 15000,
-  //   })
-  //
-  //   const downloadTime = Date.now() - downloadStartTime
-  //   expect(downloadTime).toBeLessThanOrEqual(15000)
-  //
-  //   await popup.close()
-  //   await page.close()
-  // })
+  test('ダウンロード完了が15秒以内に完了すること', async ({
+    context,
+    extensionId,
+  }) => {
+    const page = await context.newPage()
+    await page.goto('https://en.wikipedia.org/wiki/Photography', {
+      waitUntil: 'networkidle',
+    })
+
+    await waitForImageDetection(page)
+
+    const popup = await openPopupForCurrentTab(page, extensionId)
+    await expect(popup.locator('#root')).toBeVisible()
+
+    const downloadStartTime = Date.now()
+    const downloadButton = popup.locator('[data-testid="download-all-button"]')
+    await downloadButton.click()
+
+    await popup.waitForSelector('[data-testid="download-complete"]', {
+      timeout: 15000,
+    })
+
+    const downloadTime = Date.now() - downloadStartTime
+    expect(downloadTime).toBeLessThanOrEqual(15000)
+
+    await popup.close()
+    await page.close()
+  })
 })
