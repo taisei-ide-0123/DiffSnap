@@ -76,22 +76,9 @@ export const usePopupStore = create<PopupStore>((set) => ({
     })
   },
 
-  // ステータス設定
+  // ステータス設定（updateProgressのラッパー）
   setStatus: (status) => {
-    set((state) => {
-      // 状態遷移検証
-      const isValidTransition = validateStatusTransition(state.status, status)
-
-      if (!isValidTransition) {
-        console.warn(`Invalid status transition: ${state.status} -> ${status}`)
-        return state
-      }
-
-      return {
-        ...state,
-        status,
-      }
-    })
+    usePopupStore.getState().updateProgress({ status })
   },
 
   // エラーメッセージ設定
