@@ -13,6 +13,8 @@ export const App = () => {
   const candidates = usePopupStore((state) => state.candidates)
   const errorMessage = usePopupStore((state) => state.errorMessage)
   const reset = usePopupStore((state) => state.reset)
+  const setStatus = usePopupStore((state) => state.setStatus)
+  const setErrorMessage = usePopupStore((state) => state.setErrorMessage)
 
   useEffect(() => {
     // Backgroundからのメッセージリスナーをセットアップ
@@ -23,11 +25,17 @@ export const App = () => {
 
   const handleDownload = async () => {
     try {
+      // ステータスを detecting に設定
+      setStatus('detecting')
+
       // 現在のタブを取得
       const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true })
 
       if (!currentTab?.id) {
-        console.error('No active tab found')
+        const errorMsg = 'No active tab found'
+        console.error(errorMsg)
+        setErrorMessage(errorMsg)
+        setStatus('error')
         return
       }
 
@@ -45,10 +53,16 @@ export const App = () => {
       if (response?.status === 'OK') {
         console.log('Collection started successfully')
       } else {
-        console.error('Collection failed to start:', response)
+        const errorMsg = `Collection failed to start: ${response?.error ?? 'Unknown error'}`
+        console.error(errorMsg)
+        setErrorMessage(errorMsg)
+        setStatus('error')
       }
     } catch (error) {
-      console.error('Failed to send START_COLLECTION:', error)
+      const errorMsg = `Failed to send START_COLLECTION: ${error instanceof Error ? error.message : 'Unknown error'}`
+      console.error(errorMsg, error)
+      setErrorMessage(errorMsg)
+      setStatus('error')
     }
   }
 
