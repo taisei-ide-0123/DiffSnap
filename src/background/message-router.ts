@@ -394,6 +394,7 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
           await sendToContent(tabId, {
             type: 'START_SCROLL',
             options: {
+              enableScroll: options.enableScroll,
               maxDepth: options.maxScrollDepth,
               timeout: options.scrollTimeout,
             },
