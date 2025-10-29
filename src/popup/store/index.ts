@@ -13,7 +13,11 @@ interface PopupActions {
   startCollection: (tabId: number, candidates: ImageCandidate[]) => void
   // 進捗更新（BackgroundからのSTATE_UPDATEメッセージ受信時）
   updateProgress: (update: Partial<RunState>) => void
-  // エラー設定
+  // ステータス設定
+  setStatus: (status: RunState['status']) => void
+  // エラーメッセージ設定（statusは変更しない）
+  setErrorMessage: (message: string) => void
+  // エラー設定（statusをerrorに設定）
   setError: (message: string) => void
   // リセット（idle状態に戻る）
   reset: () => void
@@ -70,6 +74,19 @@ export const usePopupStore = create<PopupStore>((set) => ({
         ...update,
       }
     })
+  },
+
+  // ステータス設定（updateProgressのラッパー）
+  setStatus: (status) => {
+    usePopupStore.getState().updateProgress({ status })
+  },
+
+  // エラーメッセージ設定
+  setErrorMessage: (message) => {
+    set((state) => ({
+      ...state,
+      errorMessage: message,
+    }))
   },
 
   // エラー設定

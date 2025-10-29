@@ -134,6 +134,15 @@ export interface CleanupDataResponse {
   deletedCount?: number
 }
 
+// Response type for chrome.runtime.sendMessage
+export interface MessageResponse {
+  status: 'OK' | 'ERROR'
+  error?: string
+  message?: string
+  retryCount?: number
+  received?: number
+}
+
 // コレクションオプション
 export interface CollectionOptions {
   enableScroll: boolean // 自動スクロール有効化

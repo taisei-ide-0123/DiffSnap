@@ -152,6 +152,94 @@ describe('Popup Store', () => {
     })
   })
 
+  describe('setStatus', () => {
+    it('有効な状態遷移を実行する: idle -> detecting', () => {
+      usePopupStore.getState().setStatus('detecting')
+
+      expect(usePopupStore.getState().status).toBe('detecting')
+    })
+
+    it('有効な状態遷移を実行する: detecting -> fetching', () => {
+      usePopupStore.getState().setStatus('detecting')
+      usePopupStore.getState().setStatus('fetching')
+
+      expect(usePopupStore.getState().status).toBe('fetching')
+    })
+
+    it('無効な状態遷移を拒否する: idle -> complete', () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      usePopupStore.getState().setStatus('complete')
+
+      expect(usePopupStore.getState().status).toBe('idle')
+      expect(consoleWarnSpy).toHaveBeenCalledWith('Invalid status transition: idle -> complete')
+
+      consoleWarnSpy.mockRestore()
+    })
+
+    it('無効な状態遷移を拒否する: fetching -> detecting', () => {
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      usePopupStore.getState().setStatus('detecting')
+      usePopupStore.getState().setStatus('fetching')
+      usePopupStore.getState().setStatus('detecting')
+
+      expect(usePopupStore.getState().status).toBe('fetching')
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Invalid status transition: fetching -> detecting'
+      )
+
+      consoleWarnSpy.mockRestore()
+    })
+
+    it('既存の状態フィールドを保持する', () => {
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
+      usePopupStore.getState().startCollection(123, candidates)
+      usePopupStore.getState().updateProgress({ completed: 5, total: 10 })
+
+      usePopupStore.getState().setStatus('fetching')
+
+      const state = usePopupStore.getState()
+      expect(state.status).toBe('fetching')
+      expect(state.tabId).toBe(123)
+      expect(state.completed).toBe(5)
+      expect(state.total).toBe(10)
+      expect(state.candidates).toEqual(candidates)
+    })
+  })
+
+  describe('setErrorMessage', () => {
+    it('エラーメッセージを設定する（statusは変更しない）', () => {
+      usePopupStore.getState().setErrorMessage('Test error message')
+
+      const state = usePopupStore.getState()
+      expect(state.errorMessage).toBe('Test error message')
+      expect(state.status).toBe('idle')
+    })
+
+    it('既存の状態を保持する', () => {
+      const candidates: ImageCandidate[] = [{ url: 'https://example.com/1.jpg', source: 'img' }]
+      usePopupStore.getState().startCollection(123, candidates)
+      usePopupStore.getState().updateProgress({ completed: 3 })
+
+      usePopupStore.getState().setErrorMessage('Some warning message')
+
+      const state = usePopupStore.getState()
+      expect(state.errorMessage).toBe('Some warning message')
+      expect(state.status).toBe('detecting')
+      expect(state.tabId).toBe(123)
+      expect(state.completed).toBe(3)
+    })
+
+    it('エラーメッセージを上書きできる', () => {
+      usePopupStore.getState().setErrorMessage('First error')
+      expect(usePopupStore.getState().errorMessage).toBe('First error')
+
+      usePopupStore.getState().setErrorMessage('Second error')
+      expect(usePopupStore.getState().errorMessage).toBe('Second error')
+    })
+  })
+
   describe('setError', () => {
     it('エラーメッセージを設定し、statusをerrorにする', () => {
       usePopupStore.getState().setError('Network error occurred')

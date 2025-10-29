@@ -4,6 +4,7 @@ import { Footer } from './components/Footer'
 import { PreviewGrid } from './components/PreviewGrid'
 import { ProgressBar, type ProgressStatus } from './components/ProgressBar'
 import { usePopupStore, setupBackgroundListener } from './store'
+import type { MessageResponse } from '../shared/types'
 
 export const App = () => {
   const status = usePopupStore((state) => state.status)
@@ -13,6 +14,7 @@ export const App = () => {
   const candidates = usePopupStore((state) => state.candidates)
   const errorMessage = usePopupStore((state) => state.errorMessage)
   const reset = usePopupStore((state) => state.reset)
+  const setError = usePopupStore((state) => state.setError)
 
   useEffect(() => {
     // Backgroundからのメッセージリスナーをセットアップ
@@ -27,12 +29,12 @@ export const App = () => {
       const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true })
 
       if (!currentTab?.id) {
-        console.error('No active tab found')
+        setError('No active tab found')
         return
       }
 
       // START_COLLECTIONメッセージを送信
-      const response = await chrome.runtime.sendMessage({
+      const response = (await chrome.runtime.sendMessage({
         type: 'START_COLLECTION',
         tabId: currentTab.id,
         options: {
@@ -40,15 +42,17 @@ export const App = () => {
           maxScrollDepth: 20,
           scrollTimeout: 15000,
         },
-      })
+      })) as MessageResponse
 
       if (response?.status === 'OK') {
         console.log('Collection started successfully')
       } else {
-        console.error('Collection failed to start:', response)
+        setError(`Collection failed to start: ${response?.error ?? 'Unknown error'}`)
       }
     } catch (error) {
-      console.error('Failed to send START_COLLECTION:', error)
+      setError(
+        `Failed to send START_COLLECTION: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
   }
 
@@ -58,10 +62,10 @@ export const App = () => {
     if (!failedImage) return
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = (await chrome.runtime.sendMessage({
         type: 'RETRY_FAILED',
         failedImages: [failedImage],
-      })
+      })) as MessageResponse
 
       if (response?.status === 'OK') {
         console.log(`Retry queued for ${url}`)
@@ -78,10 +82,10 @@ export const App = () => {
     if (failed.length === 0) return
 
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = (await chrome.runtime.sendMessage({
         type: 'RETRY_FAILED',
         failedImages: failed,
-      })
+      })) as MessageResponse
 
       if (response?.status === 'OK') {
         console.log(`Retry queued for ${response.retryCount} images`)
