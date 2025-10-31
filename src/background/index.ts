@@ -4,7 +4,6 @@
 import type { ContentToBackgroundMessage, PopupToBackgroundMessage } from '../shared/types'
 import { initKeepAlive, handleKeepAliveAlarm } from './keep-alive'
 import { handleMessage } from './message-router'
-import { revokeAllManagedBlobUrls } from '../lib/blob-url-manager'
 import { initLicenseChecker, handleLicenseCheckAlarm } from './license-validator'
 
 console.log('DiffSnap background service worker initialized')
@@ -72,12 +71,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 })
 
 // Service Worker終了時のベストエフォート・クリーンアップ
-// MV3では onSuspend は非推奨かつ確実性が低い（メモリ不足時やクラッシュ時は発火しない）
-// BlobUrlManager のタイムアウトベース自動解放（60秒）と併用することでメモリリークを防ぐ
-// このリスナーはバックアップ機能として位置づけ、主要な解放はタイムアウトに依存する
-if (chrome.runtime.onSuspend) {
-  chrome.runtime.onSuspend.addListener(() => {
-    console.log('[BlobUrlManager] Service Worker suspending (best-effort cleanup)')
-    revokeAllManagedBlobUrls()
-  })
-}
+// Note: Data URL方式を採用しているため、Blob URLの管理は不要
+// Service Workerでは URL.createObjectURL() が使えないため、
+// Base64エンコードしたData URLを chrome.downloads.download() に渡している
+// メモリ管理はブラウザに委譲

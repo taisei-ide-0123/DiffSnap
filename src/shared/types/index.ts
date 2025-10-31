@@ -177,6 +177,7 @@ export interface ImageSnapshot {
 export interface StartScrollMessage {
   type: 'START_SCROLL'
   options?: {
+    enableScroll?: boolean
     maxDepth?: number
     timeout?: number
     scrollDelay?: number

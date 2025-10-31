@@ -201,18 +201,20 @@ const orchestrateCollection = async (
     })
 
     // ステップ6: ダウンロード実行
-    const blobUrl = URL.createObjectURL(zipResult.blob)
+    // Note: Service WorkerではURL.createObjectURL()が使えないため、Data URLを使用
+    const arrayBuffer = await zipResult.blob.arrayBuffer()
+    const base64 = btoa(
+      Array.from(new Uint8Array(arrayBuffer), (byte) =>
+        String.fromCharCode(byte)
+      ).join('')
+    )
+    const dataUrl = `data:application/zip;base64,${base64}`
 
     const downloadId = await chrome.downloads.download({
-      url: blobUrl,
+      url: dataUrl,
       filename: zipResult.filename,
       saveAs: true,
     })
-
-    // Blob URLを60秒後に解放（メモリリーク防止）
-    setTimeout(() => {
-      URL.revokeObjectURL(blobUrl)
-    }, 60000)
 
     // ステップ7: 完了通知
     await sendStateUpdate({
@@ -394,6 +396,7 @@ const handlePopupMessage: MessageHandler<PopupToBackgroundMessage> = (
           await sendToContent(tabId, {
             type: 'START_SCROLL',
             options: {
+              enableScroll: options.enableScroll,
               maxDepth: options.maxScrollDepth,
               timeout: options.scrollTimeout,
             },

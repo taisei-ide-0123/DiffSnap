@@ -27,59 +27,14 @@ const log = (...args: unknown[]) => {
 }
 
 /**
- * ページ読み込み完了時に画像検出を自動実行します
+ * Lazy Detection方式（Issue #72対応）
+ *
+ * 自動検出は行わず、Backgroundからの START_SCROLL メッセージを待機します。
+ * これによりBackgroundの準備完了前にIMAGES_DETECTEDが送信される競合状態を回避します。
+ *
+ * フロー: ユーザークリック → START_COLLECTION → START_SCROLL → 画像検出開始
+ * 詳細: https://github.com/taisei-ide-0123/DiffSnap/issues/72
  */
-const runDetection = () => {
-  log('Starting image detection...')
-
-  try {
-    // 画像検出エンジン実行
-    const candidates = detectImages()
-
-    log(`Detected ${candidates.length} image candidates`)
-
-    // BackgroundへIMAGES_DETECTEDメッセージ送信
-    const message: ImagesDetectedMessage = {
-      type: 'IMAGES_DETECTED',
-      candidates,
-    }
-
-    chrome.runtime.sendMessage(message, (response) => {
-      if (chrome.runtime.lastError) {
-        log('Failed to send message:', chrome.runtime.lastError.message)
-        return
-      }
-
-      log('Message sent successfully, response:', response)
-    })
-  } catch (error) {
-    log('Detection error:', error)
-
-    // Backgroundにエラー通知
-    chrome.runtime.sendMessage(
-      {
-        type: 'DETECTION_ERROR',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      () => {
-        if (chrome.runtime.lastError) {
-          log('Failed to send error notification:', chrome.runtime.lastError.message)
-        }
-      }
-    )
-  }
-}
-
-/**
- * DOMContentLoadedまたはdocument_idle時に検出を開始
- */
-if (document.readyState === 'loading') {
-  // まだDOMが読み込み中
-  document.addEventListener('DOMContentLoaded', runDetection)
-} else {
-  // DOMは既に読み込み済み（document_idleで実行される場合）
-  runDetection()
-}
 
 /**
  * IMAGES_DETECTEDメッセージを送信
@@ -132,44 +87,58 @@ const sendDetectionError = (error: unknown): void => {
 }
 
 /**
- * 自動スクロールを実行して画像を再検出
+ * 画像検出を実行（スクロール有無に応じて）
  *
- * @param options - スクロールオプション（maxDepth, timeout等）
+ * @param options - 検出オプション（enableScroll, maxDepth, timeout等）
  */
-const runScrollAndDetect = async (options: {
+const runDetection = async (options: {
+  enableScroll?: boolean
   maxDepth?: number
   timeout?: number
   scrollDelay?: number
 }) => {
-  log('Starting auto-scroll...')
+  log('Starting image detection...', { enableScroll: options.enableScroll })
 
   try {
-    const result = await autoScroll({
-      maxDepth: options.maxDepth ?? 20,
-      timeout: options.timeout ?? 15000,
-      scrollDelay: options.scrollDelay ?? 500,
-      onProgress: (scrollCount, state) => {
-        log(`Scroll progress: ${scrollCount}, state: ${state}`)
-        showScrollProgress(scrollCount, options.maxDepth ?? 20)
-      },
-      onMaxDepthReached: async () => {
-        log('Max depth reached, showing dialog...')
-        hideScrollProgress()
-        const choice = await showMaxDepthDialog(options.maxDepth ?? 20)
-        log('User choice:', choice)
-        return choice
-      },
-    })
+    if (options.enableScroll) {
+      // スクロール有効: 自動スクロールしてから画像検出
+      log('Auto-scroll enabled, starting scroll...')
+      const result = await autoScroll({
+        maxDepth: options.maxDepth ?? 20,
+        timeout: options.timeout ?? 15000,
+        scrollDelay: options.scrollDelay ?? 500,
+        onProgress: (scrollCount, state) => {
+          log(`Scroll progress: ${scrollCount}, state: ${state}`)
+          showScrollProgress(scrollCount, options.maxDepth ?? 20)
+        },
+        onMaxDepthReached: async () => {
+          log('Max depth reached, showing dialog...')
+          hideScrollProgress()
+          const choice = await showMaxDepthDialog(options.maxDepth ?? 20)
+          log('User choice:', choice)
+          return choice
+        },
+      })
 
-    log('Auto-scroll completed:', result)
+      log('Auto-scroll completed:', result)
+      hideScrollProgress()
 
-    const candidates = detectImages()
-    log(`Re-detected ${candidates.length} images after scrolling`)
+      const candidates = detectImages()
+      log(`Detected ${candidates.length} images after scrolling`)
 
-    sendImagesDetected(candidates)
-    sendScrollComplete(result)
+      sendImagesDetected(candidates)
+      sendScrollComplete(result)
+    } else {
+      // スクロール無効: 即座に画像検出
+      log('Auto-scroll disabled, detecting images immediately...')
+      const candidates = detectImages()
+      log(`Detected ${candidates.length} images without scrolling`)
+
+      sendImagesDetected(candidates)
+      // スクロール無効時はSCROLL_COMPLETEを送信しない
+    }
   } catch (error) {
-    log('Auto-scroll error:', error)
+    log('Detection error:', error)
     sendDetectionError(error)
   } finally {
     hideScrollProgress()
@@ -178,15 +147,16 @@ const runScrollAndDetect = async (options: {
 
 /**
  * Background/Popupからのメッセージハンドラ
- * スクロール制御を実装
+ * 画像検出制御を実装
  */
 chrome.runtime.onMessage.addListener(
   (message: BackgroundToContentMessage, _sender, sendResponse) => {
     log('Received message:', message)
 
     if (message.type === 'START_SCROLL') {
-      // 自動スクロール実行（非同期、オプション対応）
-      runScrollAndDetect({
+      // 画像検出実行（スクロール有無に応じて）
+      runDetection({
+        enableScroll: message.options?.enableScroll ?? false,
         maxDepth: message.options?.maxDepth ?? 20,
         timeout: message.options?.timeout ?? 15000,
         scrollDelay: message.options?.scrollDelay ?? 500,
