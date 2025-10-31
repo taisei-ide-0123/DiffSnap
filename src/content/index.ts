@@ -27,21 +27,13 @@ const log = (...args: unknown[]) => {
 }
 
 /**
- * 自動検出は削除しました（Issue #72対応）
+ * Lazy Detection方式（Issue #72対応）
  *
- * 理由:
- * - Content scriptの自動検出がBackgroundの準備前に実行される競合状態
- * - Backgroundの`activeCollections`にエントリーがない状態で
- *   IMAGES_DETECTEDが送信され、"No active collection"エラーで却下される
+ * 自動検出は行わず、Backgroundからの START_SCROLL メッセージを待機します。
+ * これによりBackgroundの準備完了前にIMAGES_DETECTEDが送信される競合状態を回避します。
  *
- * 新しいフロー（Lazy Detection）:
- * 1. ユーザーがダウンロードボタンをクリック
- * 2. Popup → Background: START_COLLECTION送信
- * 3. Background → Content: START_SCROLL送信
- * 4. Content: 画像検出開始 → IMAGES_DETECTED送信
- *
- * このシンプルなフローにより、競合状態を回避し、
- * Backgroundが常に受付準備ができた状態で画像候補を受信できます。
+ * フロー: ユーザークリック → START_COLLECTION → START_SCROLL → 画像検出開始
+ * 詳細: https://github.com/taisei-ide-0123/DiffSnap/issues/72
  */
 
 /**

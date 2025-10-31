@@ -14,12 +14,12 @@ import type { Page } from '@playwright/test'
  * - プレビュー表示: ≤1秒
  * - ダウンロード完了: ≤15秒
  *
- * フロー（Issue #72対応 - Lazy Detection）:
+ * フロー（Issue #72対応 - Lazy Detection、スクロール無効）:
  * 1. ページを開く
  * 2. Popupを開く
  * 3. ダウンロードボタンをクリック（START_COLLECTION発火）
- * 4. Background → Content: START_SCROLL送信
- * 5. Content: 画像検出開始
+ * 4. Background → Content: START_SCROLL送信（enableScroll: false）
+ * 5. Content: 画像検出開始（スクロールなし、現在のビューポートのみ）
  * 6. 検出完了を待機
  *
  * 注意: これらのテストは実サイトに依存するため、
@@ -55,7 +55,8 @@ test.describe('Real Sites E2E Tests', () => {
     await downloadButton.click()
 
     // 画像検出完了を待機（プレビュー画像が表示される）
-    await popup.waitForSelector('[data-testid="preview-image"]', { timeout: 10000 })
+    // スクロールタイムアウト(15s) + 検出処理(5s)で余裕を持たせて20秒
+    await popup.waitForSelector('[data-testid="preview-image"]', { timeout: 20000 })
 
     // 画像枚数を確認（30枚以上）
     const imageCount = await popup.locator('[data-testid="preview-image"]').count()
