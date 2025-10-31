@@ -192,11 +192,12 @@ test.describe('Real Sites E2E Tests', () => {
     const downloadButton = popup.locator('[data-testid="download-all-button"]')
     await downloadButton.click()
 
-    // ダウンロード完了を待機（15秒以内）
+    // ダウンロード完了を待機（15秒の検証 + 5秒のバッファ）
     await popup.waitForSelector('[data-testid="download-complete"]', {
-      timeout: 15000,
+      timeout: 20000,
     })
 
+    // ダウンロード時間は15秒以内であることを検証（要件）
     const downloadTime = Date.now() - downloadStartTime
     expect(downloadTime).toBeLessThanOrEqual(15000)
 
