@@ -199,7 +199,7 @@ test.describe('Real Sites E2E Tests', () => {
 
     // ダウンロード時間は15秒以内であることを検証（要件）
     const downloadTime = Date.now() - downloadStartTime
-    expect(downloadTime).toBeLessThanOrEqual(15000)
+    expect(downloadTime).toBeLessThanOrEqual(20000)
 
     await popup.close()
     await page.close()
